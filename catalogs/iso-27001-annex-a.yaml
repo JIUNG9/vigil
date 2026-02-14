@@ -1,0 +1,219 @@
+# ISO/IEC 27001:2022 Annex A — Information Security Controls
+#
+# This file ships a SUBSET of Annex A: the controls referenced by teammate's
+# v0.1 probes plus the controls cross-referenced from the K-ISMS-P catalog.
+#
+# Annex A control numbers and titles are factual reference data and are
+# reproduced as-is. The "summary" field is a one-paragraph plain-English
+# explanation written for engineers, not auditors — written by this catalog's
+# contributor, not ISO. For the official normative text, consult the ISO
+# standard (purchase from iso.org or your country's standards body).
+#
+# Schema (see ../src/teammate/catalogs.py for the loader):
+#
+#   framework:     literal "iso-27001"
+#   version:       Annex A revision year + catalog version
+#   updated:       ISO 8601 date
+#   source:        official source reference
+#   license_note:  one-line provenance disclaimer
+#   controls:      list of {id, theme, title, summary, severity}
+#
+# Theme grouping (Annex A:2022 organizes 93 controls under 4 themes):
+#   - Organizational  (37 controls, A.5.x)
+#   - People          (8 controls, A.6.x)
+#   - Physical        (14 controls, A.7.x)
+#   - Technological   (34 controls, A.8.x)
+#
+# v0.1 catalog: 16 controls covering the spaces teammate's 10 probes touch.
+# v0.1.x weekly increments expand coverage as new probes ship.
+
+framework: iso-27001
+version: "2022.0.1"
+updated: "2026-04-26"
+source: "ISO/IEC 27001:2022 Annex A"
+license_note: "Control IDs and titles factual reference data; engineering summaries authored by this catalog contributor. Re-publishable under MIT."
+
+controls:
+  # ---- Organizational ----
+  - id: "A.5.1"
+    theme: "Organizational"
+    title: "Policies for information security"
+    summary: |
+      A defined and approved set of information security policies, reviewed at
+      planned intervals and after significant change. Read by all relevant
+      personnel. The "we have a policy folder in Confluence" control.
+    severity: medium
+
+  - id: "A.5.2"
+    theme: "Organizational"
+    title: "Information security roles and responsibilities"
+    summary: |
+      Security roles are documented with clear authority and accountability.
+      For software repositories, a CODEOWNERS file or equivalent satisfies the
+      code-ownership slice of this control.
+    severity: medium
+
+  - id: "A.5.3"
+    theme: "Organizational"
+    title: "Segregation of duties"
+    summary: |
+      Conflicting duties (e.g., development AND production deploy authority)
+      are separated where practical. Where impossible, compensating controls
+      (audit logs, dual approval, post-hoc review) are documented.
+    severity: medium
+
+  - id: "A.5.9"
+    theme: "Organizational"
+    title: "Inventory of information and other associated assets"
+    summary: |
+      A current inventory of information assets, owners, and classifications.
+      Reviewed at planned intervals. The "we know what we have" control.
+    severity: medium
+
+  - id: "A.5.10"
+    theme: "Organizational"
+    title: "Acceptable use of information and other associated assets"
+    summary: |
+      Documented rules for the acceptable use of information assets — including
+      what is forbidden in source repositories (secrets, internal hostnames,
+      customer data).
+    severity: medium
+
+  - id: "A.5.12"
+    theme: "Organizational"
+    title: "Classification of information"
+    summary: |
+      Information is classified by sensitivity. The classification scheme is
+      documented and applied consistently. Personal data, secrets, and
+      internal-only information are marked.
+    severity: medium
+
+  - id: "A.5.31"
+    theme: "Organizational"
+    title: "Legal, statutory, regulatory and contractual requirements"
+    summary: |
+      The organization identifies and meets legal/regulatory requirements
+      relevant to information security. Branch protection rules supporting
+      regulatory mandates (SOX, GDPR, K-ISMS-P) are part of this.
+    severity: high
+
+  - id: "A.5.32"
+    theme: "Organizational"
+    title: "Intellectual property rights"
+    summary: |
+      Software products carry clear license declarations. Outbound
+      contributions and inbound dependencies are reviewed for license
+      compatibility. A LICENSE file at the root of every repository is the
+      minimum.
+    severity: medium
+
+  - id: "A.5.34"
+    theme: "Organizational"
+    title: "Privacy and protection of personal identifiable information (PII)"
+    summary: |
+      A documented program for protecting personal data, including a public
+      vulnerability disclosure process. SECURITY.md is the GitHub convention.
+    severity: high
+
+  - id: "A.5.35"
+    theme: "Organizational"
+    title: "Independent review of information security"
+    summary: |
+      The information security approach is independently reviewed at planned
+      intervals or after significant change. Internal audits, external
+      assessments, or peer reviews satisfy this.
+    severity: medium
+
+  - id: "A.5.36"
+    theme: "Organizational"
+    title: "Compliance with policies, rules and standards for information security"
+    summary: |
+      Compliance with the organization's information security requirements is
+      regularly reviewed. Automated CI checks (linting, hygiene, policy
+      scanning) are a continuous variant of this control.
+    severity: medium
+
+  # ---- Technological ----
+  - id: "A.8.8"
+    theme: "Technological"
+    title: "Management of technical vulnerabilities"
+    summary: |
+      Information about technical vulnerabilities is obtained in a timely
+      fashion, the organization's exposure is evaluated, and appropriate
+      measures are taken. Dependabot, Renovate, NVD subscriptions, and CVE
+      feeds are first-line tooling.
+    severity: high
+
+  - id: "A.8.10"
+    theme: "Technological"
+    title: "Information deletion"
+    summary: |
+      Information that is no longer needed is deleted in a manner appropriate
+      to its classification. For personal data, this aligns with K-ISMS-P 3.7.2
+      and GDPR Article 17.
+    severity: medium
+
+  - id: "A.8.15"
+    theme: "Technological"
+    title: "Logging"
+    summary: |
+      Logs of activities, exceptions, faults, and information security events
+      are produced, stored, protected, and analyzed. Audit logs are a
+      mandatory artifact for any production system.
+    severity: high
+
+  - id: "A.8.17"
+    theme: "Technological"
+    title: "Clock synchronization"
+    summary: |
+      Clocks of all relevant information processing systems are synchronized.
+      Without synchronized timestamps, log correlation across services is
+      impossible. NTP / chrony is the answer.
+    severity: medium
+
+  - id: "A.8.24"
+    theme: "Technological"
+    title: "Use of cryptography"
+    summary: |
+      Rules for the effective use of cryptography are defined and applied:
+      data at rest encryption, transport security, key management, and
+      algorithm choice. Plaintext Terraform state in git is a finding here.
+    severity: critical
+
+  - id: "A.8.25"
+    theme: "Technological"
+    title: "Secure development life cycle"
+    summary: |
+      Rules for the secure development of software are established and
+      applied. Pre-commit hooks, code review, automated testing, and
+      reproducible builds are first-line tooling.
+    severity: medium
+
+  - id: "A.8.30"
+    theme: "Technological"
+    title: "Outsourced development"
+    summary: |
+      Activities related to outsourced development are directed, monitored
+      and reviewed. For modern software, this also covers third-party
+      dependencies — pinning versions, monitoring vulnerabilities, reviewing
+      maintainer trust.
+    severity: high
+
+  - id: "A.8.32"
+    theme: "Technological"
+    title: "Change management"
+    summary: |
+      Changes to information processing facilities and systems follow a
+      documented change management procedure. Branch protection, mandatory
+      pull request review, and CI/CD pipeline gating are all instances of
+      this control in practice.
+    severity: high
+
+  - id: "A.8.34"
+    theme: "Technological"
+    title: "Protection of information systems during audit testing"
+    summary: |
+      Audit testing of information processing facilities is planned and
+      agreed to minimize disruption. For security testing — penetration
+      tests, vulnerability scans — this covers scope, timing, and rollback.
+    severity: medium
