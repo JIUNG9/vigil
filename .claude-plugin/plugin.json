@@ -9,7 +9,8 @@
     "skills/score-compliance/SKILL.md",
     "skills/attest-compliance/SKILL.md",
     "skills/watch-advisories/SKILL.md",
-    "skills/ask-vault/SKILL.md"
+    "skills/ask-vault/SKILL.md",
+    "skills/sync-vault/SKILL.md"
   ],
   "hooks": {
     "PreToolUse": "hooks/pre-tool-use-guardrail.sh"

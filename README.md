@@ -1,6 +1,8 @@
 # teammate
 
-> Battle buddy for new SREs joining regulated teams. **Pluggable Obsidian vault + local LLM (Ollama, gbrain-compatible) + ISO 27001 / K-ISMS-P compliance scanners + production guardrail hooks.** One install, day-one ready. No cloud round-trip, no API keys.
+> Battle buddy for new SREs joining regulated teams. **Pluggable Obsidian vault + local LLM (Ollama, gbrain-compatible) + ISO 27001 / K-ISMS-P compliance scanners + production guardrail hooks + git-backed team federation.** One install, day-one ready. No cloud round-trip, no API keys, no Anthropic-cloud lock-in.
+
+> **The Teamspace alternative for teams who can't put compliance state in someone else's cloud.** Sync the vault across the team via private git — every attestation cryptographically signed, every audit trail reproducible from `git log`.
 
 [![CI](https://github.com/placen-org/teammate/actions/workflows/ci.yml/badge.svg)](https://github.com/placen-org/teammate/actions/workflows/ci.yml)
 [![OSS Hygiene](https://github.com/placen-org/teammate/actions/workflows/oss-hygiene.yml/badge.svg)](https://github.com/placen-org/teammate/actions/workflows/oss-hygiene.yml)
@@ -134,6 +136,36 @@ teammate watch
 
 Pulls KISA RSS + NVD CVE 2.0 feeds, diffs against the last run, writes new items into `compliance-vault/advisories/<timestamp>.md`. Run weekly or via cron.
 
+### Federate the vault across the team (the Teamspace alternative)
+
+Claude Teamspace gives a team shared workspace state in Anthropic's cloud. Regulated teams can't put compliance state there. They CAN put it in a private git repo they already own. `teammate sync` does that:
+
+```bash
+# One-time per laptop: bind to the team's private vault repo
+teammate sync init git@github.com:acme-corp/team-vault.git
+
+# After every score run, push your attestations to the team
+teammate score
+teammate sync push
+
+# Before scoring, pull the team's latest state
+teammate sync pull
+
+# See where you are
+teammate sync status
+```
+
+Every attestation is cryptographically dual-signed (git commit by the engineer, PDF body by sigstore/Fulcio). The team timeline is just `git log` — `git blame` tells you who attested what, when, against which commit. Works on private GitHub, GitHub Enterprise, GitLab self-hosted, Gitea, anything that speaks git. Nothing leaves the team's jurisdiction.
+
+|  | Claude Teamspace | `teammate sync` |
+|---|---|---|
+| Data location | Anthropic cloud | Team's own private git host |
+| Subscription | Per-seat paid | Free, OSS |
+| Audit trail | Chat history | `git log` of cryptographically dual-signed attestations |
+| Air-gap capable | No | Yes (self-hosted GitLab, Gitea, etc.) |
+| Sovereignty | Anthropic's jurisdiction | Team's jurisdiction |
+| Required infra | Claude.ai for Teams | Private git (the team already has) |
+
 ## Why does this exist
 
 A new SRE on day 1 of a regulated team has four problems at once:
@@ -172,12 +204,13 @@ Most things are env-var configurable so a team can override without forking:
 ```
 teammate/
   .claude-plugin/plugin.json          # Claude Code plugin manifest
-  skills/                             # 5 skill files
+  skills/                             # 6 skill files
     init-teammate/SKILL.md
     score-compliance/SKILL.md
     attest-compliance/SKILL.md
     watch-advisories/SKILL.md
     ask-vault/SKILL.md
+    sync-vault/SKILL.md               # the Teamspace-alternative federation
   hooks/
     pre-push                          # raw bash, copied to .git/hooks/
     pre-tool-use-guardrail.sh         # Claude Code PreToolUse hook
@@ -191,6 +224,7 @@ teammate/
     vault.py                          # Obsidian-format markdown writer
     attest.py                         # PDF + opt-in sigstore signing
     watch.py                          # KISA RSS + NVD JSON 2.0 diff
+    sync.py                           # git-backed team vault federation
     catalogs.py                       # YAML loader + Probe-Control mapping
     mcp_server.py                     # JSON-RPC MCP server (vault as resource)
     rag/

@@ -1,6 +1,6 @@
 ---
-title: "I built a battle buddy for new SREs: pluggable Obsidian vault + local LLM + ISO/K-ISMS-P scanners, all in one Claude Code plugin"
-subtitle: "Three months ago I started writing K-ISMS-P translations in a markdown file at my day job. This weekend, that scratch file became `teammate`."
+title: "I built the Teamspace alternative for regulated teams: a Claude Code plugin that keeps every byte of your team's compliance state out of someone else's cloud"
+subtitle: "Three months ago I started writing K-ISMS-P translations in a markdown file at my day job. This weekend, that scratch file became `teammate` — and it federates across a whole team via private git, no Claude Teamspace required."
 author: "Jiung Gu (June Gu)"
 publication: "Medium"
 canonical_url: "https://github.com/placen-org/teammate"
@@ -18,9 +18,34 @@ status: draft
 target_publish: "2026-04-26 KST evening"
 ---
 
-# I built a battle buddy for new SREs: pluggable Obsidian vault + local LLM + ISO/K-ISMS-P scanners, all in one Claude Code plugin
+# I built the Teamspace alternative for regulated teams: a Claude Code plugin that keeps every byte of your team's compliance state out of someone else's cloud
 
-> Three months ago I started writing English translations of K-ISMS-P controls in a markdown file at my day job because I was tired of doing audits by hand. This weekend, that scratch file became an OSS Claude Code plugin: `teammate`. It scores any team's repo against ISO 27001 + K-ISMS-P, generates a signed audit PDF, and on day one blocks new hires from `git push origin main` on a Friday at 5 pm.
+> Three months ago I started writing English translations of K-ISMS-P controls in a markdown file at my day job because I was tired of doing audits by hand. This weekend, that scratch file became an OSS Claude Code plugin: `teammate`. It scores any team's repo against ISO 27001 + K-ISMS-P, generates a signed audit PDF, and on day one blocks new hires from `git push origin main` on a Friday at 5 pm. **And it federates the team's compliance state via private git, not Anthropic's cloud — the Teamspace alternative for teams whose data can't leave the country.**
+
+---
+
+## Why "Teamspace alternative"?
+
+Claude Teamspace is a great product for productivity-focused teams. It is also a non-starter for an entire category of users: regulated industries where data residency rules forbid sending team-internal compliance state to a US-headquartered cloud.
+
+Korean fintech. Korean public sector. Korean healthcare. Defense. Financial trading floors. Government contractors anywhere. The list of teams who can't open Claude Teamspace is long, and it's the same list of teams that would benefit MOST from team-shared compliance tooling.
+
+So I built one that lives entirely on the team's own infrastructure. The vault is markdown. The LLM is Ollama. The team-shared timeline is private git. Nothing leaves the team's jurisdiction — not their codebase, not their compliance state, not the prompt history of the engineer asking "is our K-ISMS-P 2.5.1 control failing?".
+
+Comparison:
+
+|  | Claude Teamspace | `teammate` |
+|---|---|---|
+| Data location | Anthropic cloud | Team's own private git host |
+| Subscription | Per-seat paid | Free, OSS (MIT) |
+| Audit trail | Chat history | `git log` of cryptographically dual-signed attestations (sigstore + git commits) |
+| Air-gap capable | No | Yes (self-hosted GitLab, Gitea, on-prem) |
+| Sovereignty | Anthropic's jurisdiction | Team's jurisdiction |
+| Required infra | Claude.ai for Teams | Private git (the team already has) |
+| K-ISMS-P scoring | No | First English-language OSS to ship K-ISMS-P at all |
+| Production guardrails | Chat-only | Hooks that physically block dangerous git/terraform/kubectl commands |
+
+This isn't competing with Teamspace; it's serving a different market. If your team CAN use Teamspace, by all means use it — it's a great product. If your team can't, `teammate` is the sovereign-stack alternative.
 
 ---
 
@@ -176,6 +201,11 @@ cd /path/to/your-team-repo
 teammate init
 teammate score
 teammate ask "what's our current compliance posture?"
+
+# To federate across the team (the Teamspace alternative):
+teammate sync init git@github.com:your-org/team-vault.git
+teammate sync push   # after every score run
+teammate sync pull   # before every score run
 ```
 
 If anything breaks, open an issue. If the K-ISMS-P translation reads weirdly to a Korean compliance practitioner, please open a PR — I'd rather have one accurate control than five rough ones.

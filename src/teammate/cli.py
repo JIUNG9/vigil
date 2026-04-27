@@ -34,6 +34,7 @@ from teammate.rag.ask import answer
 from teammate.rag.index import discover_indexable_files, index_paths
 from teammate.rag.ollama import OllamaClient
 from teammate.score import run_all
+from teammate import sync as sync_mod
 from teammate.vault import Vault
 from teammate.watch import run as run_watch
 
@@ -248,6 +249,80 @@ def attest(sign: bool, vault_path: Path | None) -> None:
         pdf, sig, crt = build_attestation(summary, outcomes, sign=False)
     out_path = vault.write_attestation(pdf, sig, crt, summary)
     click.echo(f"wrote attestation: {out_path}")
+
+
+@main.group()
+def sync() -> None:
+    """Git-backed team vault federation. Beats Teamspace on the data-residency axis."""
+
+
+@sync.command("init")
+@click.argument("git_url")
+@click.option("--branch", default="main", show_default=True,
+              help="Branch on the team-vault remote.")
+@click.option("--vault", "vault_path", type=click.Path(path_type=Path),
+              help="Override vault location.")
+def sync_init(git_url: str, branch: str, vault_path: Path | None) -> None:
+    """Initialize the vault as a separate git checkout against GIT_URL.
+
+    GIT_URL should be a private git repository the team owns
+    (e.g., git@github.com:org/team-vault.git). It can be empty — the
+    first push will populate it.
+    """
+    target = _resolve_vault(Path.cwd(), vault_path)
+    try:
+        msg = sync_mod.init(target, git_url, branch=branch)
+    except sync_mod.SyncError as exc:
+        click.echo(str(exc), err=True)
+        sys.exit(1)
+    click.echo(msg)
+
+
+@sync.command("push")
+@click.option("-m", "--message", default=None, help="Commit message override.")
+@click.option("--vault", "vault_path", type=click.Path(path_type=Path),
+              help="Override vault location.")
+def sync_push(message: str | None, vault_path: Path | None) -> None:
+    """Stage, commit, and push the local vault state to the team remote."""
+    target = _resolve_vault(Path.cwd(), vault_path)
+    try:
+        msg = sync_mod.push(target, message=message)
+    except sync_mod.SyncError as exc:
+        click.echo(str(exc), err=True)
+        sys.exit(1)
+    click.echo(msg)
+
+
+@sync.command("pull")
+@click.option("--vault", "vault_path", type=click.Path(path_type=Path),
+              help="Override vault location.")
+def sync_pull(vault_path: Path | None) -> None:
+    """Rebase other engineers' attestations into the local vault."""
+    target = _resolve_vault(Path.cwd(), vault_path)
+    try:
+        msg = sync_mod.pull(target)
+    except sync_mod.SyncError as exc:
+        click.echo(str(exc), err=True)
+        sys.exit(1)
+    click.echo(msg)
+
+
+@sync.command("status")
+@click.option("--vault", "vault_path", type=click.Path(path_type=Path),
+              help="Override vault location.")
+def sync_status(vault_path: Path | None) -> None:
+    """Show the team-vault sync state (initialized, remote, ahead/behind, dirty)."""
+    target = _resolve_vault(Path.cwd(), vault_path)
+    s = sync_mod.status(target)
+    if not s.initialized:
+        click.echo("Vault is local-only (not sync-initialized). Run `teammate sync init <git-url>` to federate.")
+        return
+    click.echo(f"remote:    {s.remote}")
+    click.echo(f"branch:    {s.branch}")
+    click.echo(f"ahead:     {s.ahead}")
+    click.echo(f"behind:    {s.behind}")
+    click.echo(f"dirty:     {'yes' if s.dirty else 'no'}")
+    click.echo(f"last:      {s.last_local_commit}")
 
 
 if __name__ == "__main__":
