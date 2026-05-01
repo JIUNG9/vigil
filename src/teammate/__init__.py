@@ -1,12 +1,26 @@
-"""teammate — battle buddy for new SREs joining regulated teams.
+"""teammate — your team's brain in your team's git repo.
 
-Pluggable Obsidian-format vault as the nucleus, with local LLM (Ollama-backed
-RAG) on top. Compliance scoring, advisory watching, and signed attestation
-are pluggable scanners that all write to the vault. Production guardrail
-hooks block dangerous git/infrastructure actions on day 1.
+A team-context-sharing tool that treats a private git repository as the
+canonical brain (CLAUDE.md, runbooks, ADRs, knowledge files) and lets every
+engineer query it locally via a local LLM (Ollama) with sqlite-vec retrieval.
+The Teamspace alternative for teams who can't put context in someone else's
+cloud.
 
-This package is OSS for any team to adopt — config-only changes, no code
-edits required to deploy at any company. Enforced by oss-hygiene CI.
+Architecture:
+
+  - **brain.py** — read-only view over the team's markdown.
+  - **rag/** — local LLM + sqlite-vec retrieval, gbrain-compatible.
+  - **mcp_server.py** — exposes the brain as MCP resources to Claude Code.
+  - **init.py** — `teammate scaffold <dir>` (team-lead one-shot) +
+    `teammate init` (per-laptop setup).
+  - **cli.py** — the `teammate` command.
+
+Optional layers:
+
+  - **Obsidian** — point it at the cloned repo. Markdown opens natively.
+  - **gbrain** — auto-detected; if installed, registered as a source.
+
+Local-first by design. No cloud round-trip. No API keys at install.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

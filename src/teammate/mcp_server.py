@@ -1,37 +1,30 @@
-"""Minimal MCP (Model Context Protocol) server for the compliance vault.
+"""Minimal MCP (Model Context Protocol) server for the team brain.
 
-Implements the JSON-RPC subset Claude Code needs to discover and read
-vault content as MCP resources. Stdio transport — Claude Code spawns the
-server as a subprocess, talks to it on stdin/stdout.
+Exposes the team's git-repo-of-markdown to Claude Code as MCP resources +
+one search tool. Stdio JSON-RPC. Zero third-party deps.
 
-Resources exposed:
+Resources:
 
-  - ``vault://latest``                       — most recent score summary (latest.md)
-  - ``vault://history/<filename>``           — historical run record
-  - ``vault://controls/<framework>/<id>``    — per-control evidence
-  - ``vault://advisories/<filename>``        — watch-mode advisory diff
-  - ``vault://attestations/<filename>``      — signed PDF attestation companion .md
+  - ``brain://CLAUDE.md``                — the team's global rules file
+  - ``brain://skills/<name>``            — a team-specific skill (.claude/skills/<name>/SKILL.md)
+  - ``brain://rules/<name>``             — a split-out rules file (.claude/rules/<name>.md)
+  - ``brain://docs/<path>``              — anything under docs/
+  - ``brain://knowledge/<path>``         — anything under knowledge/
 
-Tools exposed:
+Tools:
 
-  - ``vault.search`` ({"query": str, "k": int}) — keyword/embedding search
-    over vault chunks. Returns top-k hits with paths and scores. Caller
-    composes the answer themselves; this is a retrieval-only tool.
+  - ``brain.search`` ({"query": str, "k": int}) — top-k hits from the
+    sqlite-vec index, with paths and scores. Use this when Claude needs
+    to retrieve relevant chunks before answering a contextual question.
 
-This file does NOT use any third-party MCP library — we implement the
-JSON-RPC framing manually. Reasons:
-
-  1. Zero extra dependencies in the wheel.
-  2. The MCP wire protocol is small enough to maintain by hand.
-  3. Pinning to a specific MCP SDK version risks compatibility drift.
-
-If a stable Python MCP SDK ships in 2026.x, this module is the natural
-swap point. The tool/resource semantics stay the same.
+Implementation choice: hand-rolled JSON-RPC, no MCP SDK. Keeps the wheel
+tiny and avoids version drift.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -40,103 +33,108 @@ from teammate import __version__
 from teammate.rag.ask import retrieve
 from teammate.rag.ollama import OllamaClient
 
-PROTOCOL_VERSION = "2025-06-18"  # current MCP spec version at time of writing
+PROTOCOL_VERSION = "2025-06-18"
 
 
-# ---------- vault resolution ----------
+# ---------- brain root resolution ----------
 
 
-def _vault_root() -> Path:
-    """Resolve compliance-vault/ from CWD or env override."""
-    import os
-
-    override = os.environ.get("TEAMMATE_VAULT_ROOT")
+def _brain_root() -> Path:
+    """Resolve the team brain root from env override or CWD."""
+    override = os.environ.get("TEAMMATE_BRAIN_ROOT")
     if override:
         return Path(override).resolve()
-    return (Path.cwd() / "compliance-vault").resolve()
+    return Path.cwd().resolve()
 
 
 # ---------- resource enumeration ----------
 
 
 def _enumerate_resources() -> list[dict[str, Any]]:
-    root = _vault_root()
-    if not root.exists():
-        return []
+    root = _brain_root()
     out: list[dict[str, Any]] = []
-    latest = root / "latest.md"
-    if latest.exists():
-        out.append(
-            {
-                "uri": "vault://latest",
-                "name": "Latest compliance score",
-                "description": "Most recent teammate score run summary.",
+
+    claude_md = root / "CLAUDE.md"
+    if claude_md.exists():
+        out.append({
+            "uri": "brain://CLAUDE.md",
+            "name": "CLAUDE.md",
+            "description": "Team's global rules file (loaded by Claude Code at session start).",
+            "mimeType": "text/markdown",
+        })
+
+    skills_root = root / ".claude" / "skills"
+    if skills_root.is_dir():
+        for skill_dir in sorted(skills_root.iterdir()):
+            skill_md = skill_dir / "SKILL.md"
+            if skill_md.exists():
+                out.append({
+                    "uri": f"brain://skills/{skill_dir.name}",
+                    "name": f"Skill: {skill_dir.name}",
+                    "description": f"Team-specific skill at .claude/skills/{skill_dir.name}/SKILL.md",
+                    "mimeType": "text/markdown",
+                })
+
+    rules_root = root / ".claude" / "rules"
+    if rules_root.is_dir():
+        for rule_md in sorted(rules_root.glob("*.md")):
+            out.append({
+                "uri": f"brain://rules/{rule_md.stem}",
+                "name": f"Rule: {rule_md.stem}",
+                "description": f"Split-out rules file at .claude/rules/{rule_md.name}",
                 "mimeType": "text/markdown",
-            }
-        )
-    for sub, name_prefix in (
-        ("history", "vault://history/"),
-        ("advisories", "vault://advisories/"),
-        ("attestations", "vault://attestations/"),
-    ):
-        d = root / sub
-        if d.is_dir():
-            for f in sorted(d.glob("*.md")):
-                out.append(
-                    {
-                        "uri": f"{name_prefix}{f.name}",
-                        "name": f"{sub.title()}: {f.stem}",
-                        "description": f"{sub} record from {f.stem}",
-                        "mimeType": "text/markdown",
-                    }
-                )
-    controls_root = root / "controls"
-    if controls_root.is_dir():
-        for framework_dir in sorted(controls_root.iterdir()):
-            if not framework_dir.is_dir():
-                continue
-            for f in sorted(framework_dir.glob("*.md")):
-                out.append(
-                    {
-                        "uri": f"vault://controls/{framework_dir.name}/{f.stem}",
-                        "name": f"{framework_dir.name}:{f.stem}",
-                        "description": f"Per-control evidence for {framework_dir.name} {f.stem}",
-                        "mimeType": "text/markdown",
-                    }
-                )
+            })
+
+    for top in ("docs", "knowledge"):
+        top_dir = root / top
+        if not top_dir.is_dir():
+            continue
+        for md in sorted(top_dir.rglob("*.md")):
+            rel = md.relative_to(top_dir).as_posix()
+            out.append({
+                "uri": f"brain://{top}/{rel}",
+                "name": f"{top}/{rel}",
+                "description": f"{top} entry: {rel}",
+                "mimeType": "text/markdown",
+            })
+
     return out
 
 
 def _read_resource(uri: str) -> str:
-    root = _vault_root()
-    if uri == "vault://latest":
-        target = root / "latest.md"
-    elif uri.startswith("vault://history/"):
-        target = root / "history" / uri[len("vault://history/"):]
-    elif uri.startswith("vault://advisories/"):
-        target = root / "advisories" / uri[len("vault://advisories/"):]
-    elif uri.startswith("vault://attestations/"):
-        target = root / "attestations" / uri[len("vault://attestations/"):]
-    elif uri.startswith("vault://controls/"):
-        rest = uri[len("vault://controls/"):]
-        framework, _, control_id = rest.partition("/")
-        target = root / "controls" / framework / f"{control_id}.md"
+    root = _brain_root()
+
+    if uri == "brain://CLAUDE.md":
+        target = root / "CLAUDE.md"
+    elif uri.startswith("brain://skills/"):
+        name = uri[len("brain://skills/"):]
+        target = root / ".claude" / "skills" / name / "SKILL.md"
+    elif uri.startswith("brain://rules/"):
+        name = uri[len("brain://rules/"):]
+        target = root / ".claude" / "rules" / f"{name}.md"
+    elif uri.startswith("brain://docs/"):
+        rel = uri[len("brain://docs/"):]
+        target = root / "docs" / rel
+    elif uri.startswith("brain://knowledge/"):
+        rel = uri[len("brain://knowledge/"):]
+        target = root / "knowledge" / rel
     else:
-        raise ValueError(f"Unknown vault URI: {uri}")
+        raise ValueError(f"Unknown brain URI: {uri}")
+
     if not target.exists():
         raise FileNotFoundError(str(target))
     return target.read_text(encoding="utf-8")
 
 
-# ---------- tool: vault.search ----------
+# ---------- tool: brain.search ----------
 
 
-def _tool_vault_search(args: dict[str, Any]) -> list[dict[str, Any]]:
+def _tool_brain_search(args: dict[str, Any]) -> list[dict[str, Any]]:
     query = str(args.get("query", "")).strip()
     k = int(args.get("k", 6))
     if not query:
         return []
-    cache_dir = Path.cwd() / ".teammate-cache"
+    cache_dir = _brain_root() / ".teammate-cache"
     db = cache_dir / "vault.sqlite"
     if not db.exists():
         return []
@@ -146,8 +144,7 @@ def _tool_vault_search(args: dict[str, Any]) -> list[dict[str, Any]]:
         {
             "path": h.path,
             "chunk_idx": h.chunk_idx,
-            "framework": h.framework,
-            "control": h.control,
+            "section": h.kind,
             "score": h.score,
             "text": h.text,
         }
@@ -171,28 +168,21 @@ def _make_error(req_id: Any, code: int, message: str) -> dict[str, Any]:
 
 
 def handle(req: dict[str, Any]) -> dict[str, Any] | None:
-    """Handle a single JSON-RPC request. Notifications return None."""
     method = req.get("method", "")
     req_id = req.get("id")
     params = req.get("params", {}) or {}
 
     if method == "initialize":
-        return _make_response(
-            req_id,
-            {
-                "protocolVersion": PROTOCOL_VERSION,
-                "serverInfo": {
-                    "name": "teammate-vault",
-                    "version": __version__,
-                },
-                "capabilities": {
-                    "resources": {"listChanged": False},
-                    "tools": {"listChanged": False},
-                },
+        return _make_response(req_id, {
+            "protocolVersion": PROTOCOL_VERSION,
+            "serverInfo": {"name": "teammate-brain", "version": __version__},
+            "capabilities": {
+                "resources": {"listChanged": False},
+                "tools": {"listChanged": False},
             },
-        )
+        })
     if method == "initialized":
-        return None  # notification — no response
+        return None
 
     if method == "resources/list":
         return _make_response(req_id, {"resources": _enumerate_resources()})
@@ -205,65 +195,41 @@ def handle(req: dict[str, Any]) -> dict[str, Any] | None:
             return _make_error(req_id, -32602, f"Resource not found: {uri}")
         except ValueError as exc:
             return _make_error(req_id, -32602, str(exc))
-        return _make_response(
-            req_id,
-            {
-                "contents": [
-                    {
-                        "uri": uri,
-                        "mimeType": "text/markdown",
-                        "text": text,
-                    }
-                ]
-            },
-        )
+        return _make_response(req_id, {
+            "contents": [{"uri": uri, "mimeType": "text/markdown", "text": text}]
+        })
 
     if method == "tools/list":
-        return _make_response(
-            req_id,
-            {
-                "tools": [
-                    {
-                        "name": "vault.search",
-                        "description": "Search the compliance vault for relevant content. "
-                        "Returns top-k chunks with paths and scores.",
-                        "inputSchema": {
-                            "type": "object",
-                            "properties": {
-                                "query": {"type": "string"},
-                                "k": {"type": "integer", "default": 6},
-                            },
-                            "required": ["query"],
-                        },
-                    }
-                ]
-            },
-        )
+        return _make_response(req_id, {
+            "tools": [{
+                "name": "brain.search",
+                "description": "Search the team brain. Returns top-k chunks with paths and scores.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string"},
+                        "k": {"type": "integer", "default": 6},
+                    },
+                    "required": ["query"],
+                },
+            }]
+        })
 
     if method == "tools/call":
         name = params.get("name", "")
         args = params.get("arguments", {}) or {}
-        if name == "vault.search":
-            hits = _tool_vault_search(args)
-            return _make_response(
-                req_id,
-                {
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": json.dumps({"hits": hits}, indent=2),
-                        }
-                    ],
-                    "isError": False,
-                },
-            )
+        if name == "brain.search":
+            hits = _tool_brain_search(args)
+            return _make_response(req_id, {
+                "content": [{"type": "text", "text": json.dumps({"hits": hits}, indent=2)}],
+                "isError": False,
+            })
         return _make_error(req_id, -32601, f"Tool not found: {name}")
 
     return _make_error(req_id, -32601, f"Method not found: {method}")
 
 
 def main() -> None:
-    """Stdio JSON-RPC loop. Read line-delimited requests, write responses."""
     for line in sys.stdin:
         line = line.strip()
         if not line:
@@ -274,7 +240,7 @@ def main() -> None:
             continue
         try:
             resp = handle(req)
-        except Exception as exc:  # never crash the loop on a bad request
+        except Exception as exc:
             resp = _make_error(req.get("id"), -32603, f"Internal error: {exc}")
         if resp is not None:
             sys.stdout.write(json.dumps(resp) + "\n")

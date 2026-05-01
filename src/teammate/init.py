@@ -1,36 +1,29 @@
-"""`teammate init` — wire everything together for a new SRE on day 1.
+"""`teammate init` and `teammate scaffold` — set up the team brain on this machine.
 
-Idempotent. Run as many times as you want. Safe defaults:
+Two distinct flows:
 
-  1. Scaffold ``compliance-vault/`` with the documented Obsidian layout.
-  2. Drop ``compliance-vault/.gitignore`` (default: don't track in git).
-  3. Copy bundled hooks into ``.git/hooks/`` IF the repo has no existing
-     pre-push hook. Refuses by default to avoid clobbering team setups.
-     Override: ``TEAMMATE_FORCE_INIT=1 teammate init``.
-  4. Detect Ollama. If running, mention which models are pulled.
-     If not running, print install hint (link only, no auto-install).
-  5. Detect gbrain. If on PATH, offer registration (interactive yes/no
-     unless ``--yes`` was passed).
-  6. Build the initial vault index from any existing ``compliance-vault/``,
-     team ``CLAUDE.md``, and ``docs/`` markdown.
+  - `teammate scaffold <dir>` — a TEAM LEAD creates a new team-brain repo
+    from the bundled template. One-time, per organization. Outputs a
+    fresh repo skeleton ready to commit + push to a private git remote.
 
-Returns a dict of step -> outcome ("ok"/"skipped"/"failed: <why>") so the
-CLI can print a tidy summary and exit non-zero if anything blocked.
+  - `teammate init` — an INDIVIDUAL ENGINEER sets up teammate in an
+    already-cloned team-brain repo. One-time per laptop. Detects Ollama,
+    indexes the markdown, optionally registers gbrain.
+
+This module ships the orchestrators for both. The CLI in `cli.py` exposes
+them as `teammate scaffold` and `teammate init`.
 """
 
 from __future__ import annotations
 
 import shutil
-import textwrap
 from pathlib import Path
 from typing import Any
 
+from teammate.brain import Brain
 from teammate.rag import gbrain
 from teammate.rag.index import discover_indexable_files, index_paths
 from teammate.rag.ollama import OllamaClient
-from teammate.vault import Vault
-
-# ---------- step results ----------
 
 
 def _ok(msg: str) -> dict[str, str]:
@@ -45,59 +38,84 @@ def _fail(msg: str) -> dict[str, str]:
     return {"status": "failed", "detail": msg}
 
 
-# ---------- individual steps ----------
+# ---------- scaffold (team lead, one-time per org) ----------
 
 
-def step_vault(repo_root: Path) -> dict[str, str]:
-    vault_path = repo_root / "compliance-vault"
-    Vault(vault_path).ensure_layout()
-    return _ok(f"Vault scaffolded at {vault_path.relative_to(repo_root)}/")
+def _bundled_template_dir() -> Path:
+    """Locate the team-brain skeleton bundled with the package."""
+    pkg_root = Path(__file__).resolve().parent.parent.parent
+    candidate = pkg_root / "templates" / "team-brain-skeleton"
+    if candidate.is_dir():
+        return candidate
+    # Fall back to package-local copy (for installed wheels)
+    return Path(__file__).resolve().parent / "templates" / "team-brain-skeleton"
 
 
-def step_hooks(repo_root: Path, *, force: bool = False) -> dict[str, str]:
-    """Copy bundled hooks/ into .git/hooks/. Refuses to clobber by default."""
-    git_dir = repo_root / ".git"
-    if not git_dir.is_dir():
-        return _skip("Not a git repo. Skipping hook install (run inside a git checkout).")
+def scaffold(target_dir: Path, team_name: str = "TEAM-NAME") -> dict[str, Any]:
+    """Copy the bundled team-brain template into ``target_dir``.
 
-    hooks_src = _bundled_hooks_dir()
-    if not hooks_src.is_dir():
-        return _fail(f"Bundled hooks directory missing: {hooks_src}")
+    Replaces the literal placeholder ``TEAM-NAME`` in the seed files with
+    the user's team name. Caller is responsible for `git init`-ing the
+    output and pushing to a private remote.
+    """
+    target_dir = target_dir.resolve()
+    if target_dir.exists() and any(target_dir.iterdir()):
+        return {
+            "status": "failed",
+            "detail": (
+                f"Target {target_dir} is not empty. "
+                f"Pick an empty directory or `rm -rf` first."
+            ),
+        }
 
-    hooks_dst = git_dir / "hooks"
-    hooks_dst.mkdir(exist_ok=True)
+    src = _bundled_template_dir()
+    if not src.is_dir():
+        return _fail(f"Bundled template not found at {src}")
 
-    installed: list[str] = []
-    for hook_name in ("pre-push",):
-        src = hooks_src / hook_name
-        dst = hooks_dst / hook_name
-        if not src.exists():
-            continue
-        if dst.exists() and not force:
-            return _fail(
-                f"existing pre-push hook detected at {dst.relative_to(repo_root)}. "
-                f"Rename it then re-run, or run `TEAMMATE_FORCE_INIT=1 teammate init` "
-                f"to overwrite."
-            )
-        shutil.copy2(src, dst)
-        dst.chmod(0o755)
-        installed.append(hook_name)
+    target_dir.mkdir(parents=True, exist_ok=True)
+    # shutil.copytree won't merge into an existing dir; we copy manually.
+    for entry in src.rglob("*"):
+        rel = entry.relative_to(src)
+        dst = target_dir / rel
+        if entry.is_dir():
+            dst.mkdir(parents=True, exist_ok=True)
+        else:
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            text = entry.read_text(encoding="utf-8")
+            text = text.replace("TEAM-NAME", team_name)
+            dst.write_text(text, encoding="utf-8")
 
-    # The Claude Code PreToolUse hook is referenced from the repo root rather
-    # than copied into .git/hooks/ — Claude Code reads it from the path
-    # configured in .claude/settings.json. teammate ships a settings template.
-    claude_settings_dir = repo_root / ".claude"
-    if claude_settings_dir.exists() and (claude_settings_dir / "settings.json").exists():
-        installed.append("(.claude/settings.json already exists; left untouched)")
-    else:
-        # Don't auto-write .claude/settings.json — the user may have global preferences.
-        # Print guidance instead.
-        installed.append(
-            "(skipped .claude/settings.json — see docs/QUICKSTART.md for the snippet "
-            "to add the PreToolUse guardrail)"
+    return {
+        "status": "ok",
+        "detail": (
+            f"Scaffolded team-brain at {target_dir}.\n"
+            f"  Next steps:\n"
+            f"    cd {target_dir}\n"
+            f"    git init -b main && git add -A\n"
+            f"    git commit -m 'init: team-brain'\n"
+            f"    git remote add origin git@github.com:<your-org>/team-brain.git\n"
+            f"    git push -u origin main"
+        ),
+    }
+
+
+# ---------- init (individual engineer, per-laptop) ----------
+
+
+def step_brain(brain_root: Path) -> dict[str, str]:
+    brain = Brain(brain_root)
+    if not brain.exists():
+        return _fail(
+            f"No CLAUDE.md found at {brain_root}. Are you in a team-brain repo? "
+            f"If you're the team lead setting this up, run `teammate scaffold <dir>` first."
         )
-
-    return _ok(f"Installed: {', '.join(installed)}.")
+    stats = brain.stats()
+    return _ok(
+        f"Brain detected at {brain_root}: "
+        f"{stats['total']} markdown files "
+        f"({stats['claude']} CLAUDE.md, {stats['skills']} skills, "
+        f"{stats['rules']} rules, {stats['docs']} docs, {stats['knowledge']} knowledge)"
+    )
 
 
 def step_ollama(*, host: str | None = None) -> dict[str, str]:
@@ -106,8 +124,8 @@ def step_ollama(*, host: str | None = None) -> dict[str, str]:
         return _skip(
             "Ollama not detected on localhost:11434. Install: "
             "https://ollama.com/download (open-source, runs locally). "
-            "After install, run `ollama serve` then `ollama pull "
-            f"{client.llm_model}` and `ollama pull {client.embedding_model}`."
+            f"Then: `ollama serve &` + `ollama pull {client.llm_model}` "
+            f"+ `ollama pull {client.embedding_model}`."
         )
     try:
         models = client.list_models()
@@ -118,95 +136,59 @@ def step_ollama(*, host: str | None = None) -> dict[str, str]:
     if missing:
         cmds = " && ".join(f"ollama pull {m}" for m in missing)
         return _ok(
-            f"Ollama up. Models present: {', '.join(models) or 'none'}. "
-            f"Missing: {', '.join(missing)}. Pull with: {cmds}"
+            f"Ollama up. Missing models: {', '.join(missing)}. Pull with: {cmds}"
         )
     return _ok(f"Ollama up. Required models present: {', '.join(sorted(needed))}.")
 
 
-def step_gbrain(repo_root: Path, *, register: bool = False) -> dict[str, str]:
+def step_gbrain(brain_root: Path, *, register: bool = False) -> dict[str, str]:
     status = gbrain.detect()
     if not status.available:
         return _skip(status.notes)
     if not register:
         return _ok(
             f"{status.notes} Re-run `teammate init --register-gbrain` "
-            f"to register the vault as a gbrain source."
+            f"to register the team-brain as a gbrain source."
         )
-    vault_path = repo_root / "compliance-vault"
-    ok, msg = gbrain.register_vault(vault_path)
+    ok, msg = gbrain.register_vault(brain_root)
     return _ok(msg) if ok else _fail(msg)
 
 
-def step_index(repo_root: Path, *, ollama: OllamaClient | None = None) -> dict[str, str]:
-    cache_dir = repo_root / ".teammate-cache"
-    paths = discover_indexable_files([repo_root])
+def step_index(brain_root: Path, *, ollama: OllamaClient | None = None) -> dict[str, str]:
+    cache_dir = brain_root / ".teammate-cache"
+    paths = discover_indexable_files([brain_root])
     if not paths:
-        return _skip("No markdown found in compliance-vault/, docs/, or root yet.")
+        return _skip("No markdown found in the brain yet.")
     indexed, skipped = index_paths(paths, cache_dir, ollama=ollama)
     embed_status = (
         "with embeddings"
         if (ollama and ollama.is_up())
-        else "without embeddings (Ollama down — keyword search will work)"
+        else "keyword-only (Ollama down)"
     )
     return _ok(
         f"Indexed {indexed} files {embed_status} ({skipped} unchanged). "
-        f"Cache: {cache_dir.relative_to(repo_root)}/vault.sqlite"
+        f"Cache: .teammate-cache/vault.sqlite"
     )
 
 
-# ---------- orchestration ----------
-
-
-def run(
-    repo_root: Path,
-    *,
-    force: bool = False,
-    register_gbrain: bool = False,
-) -> dict[str, dict[str, str]]:
-    """Run the whole init flow. Returns step name -> result mapping."""
-    repo_root = repo_root.resolve()
+def run(brain_root: Path, *, register_gbrain: bool = False) -> dict[str, dict[str, str]]:
+    """Run the full per-laptop init flow inside an already-cloned team-brain."""
+    brain_root = brain_root.resolve()
     results: dict[str, dict[str, str]] = {}
 
-    results["vault"] = step_vault(repo_root)
-    results["hooks"] = step_hooks(repo_root, force=force)
-    results["ollama"] = step_ollama()
-    results["gbrain"] = step_gbrain(repo_root, register=register_gbrain)
-    # Build the index using whatever Ollama state we observed.
-    ollama = OllamaClient()
-    if ollama.is_up():
-        results["index"] = step_index(repo_root, ollama=ollama)
-    else:
-        results["index"] = step_index(repo_root, ollama=None)
+    results["brain"] = step_brain(brain_root)
+    if results["brain"]["status"] == "failed":
+        # No point continuing without a brain.
+        return results
 
+    results["ollama"] = step_ollama()
+    results["gbrain"] = step_gbrain(brain_root, register=register_gbrain)
+    ollama = OllamaClient()
+    results["index"] = step_index(brain_root, ollama=ollama if ollama.is_up() else None)
     return results
 
 
-# ---------- helpers ----------
-
-
-def _bundled_hooks_dir() -> Path:
-    """Locate hooks/ shipped with the package.
-
-    Resolution order:
-    1. ``$TEAMMATE_HOOKS_DIR`` env var.
-    2. Repo-root sibling of src/teammate (typical dev checkout).
-    3. ``hooks/`` directory bundled in the wheel.
-    """
-    import os
-
-    override = os.environ.get("TEAMMATE_HOOKS_DIR")
-    if override:
-        return Path(override).resolve()
-    pkg_root = Path(__file__).resolve().parent.parent.parent
-    candidate = pkg_root / "hooks"
-    if candidate.is_dir():
-        return candidate
-    return Path(__file__).resolve().parent / "hooks"
-
-
 def render_summary(results: dict[str, dict[str, str]]) -> str:
-    """Produce a human-readable summary of the init results."""
     lines = ["teammate init —"]
     for step, result in results.items():
         status = result["status"]
@@ -218,9 +200,9 @@ def render_summary(results: dict[str, dict[str, str]]) -> str:
 __all__ = [
     "render_summary",
     "run",
+    "scaffold",
+    "step_brain",
     "step_gbrain",
-    "step_hooks",
     "step_index",
     "step_ollama",
-    "step_vault",
 ]

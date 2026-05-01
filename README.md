@@ -1,264 +1,340 @@
 # teammate
 
-> Battle buddy for new SREs joining regulated teams. **Pluggable Obsidian vault + local LLM (Ollama, gbrain-compatible) + ISO 27001 / K-ISMS-P compliance scanners + production guardrail hooks + git-backed team federation.** One install, day-one ready. No cloud round-trip, no API keys, no Anthropic-cloud lock-in.
-
-> **The Teamspace alternative for teams who can't put compliance state in someone else's cloud.** Sync the vault across the team via private git — every attestation cryptographically signed, every audit trail reproducible from `git log`.
+> **Your team's brain in your team's git repo.** Local-LLM-queryable, Obsidian-friendly, git-federated. The Teamspace alternative for teams who can't put context in someone else's cloud.
 
 [![CI](https://github.com/placen-org/teammate/actions/workflows/ci.yml/badge.svg)](https://github.com/placen-org/teammate/actions/workflows/ci.yml)
-[![OSS Hygiene](https://github.com/placen-org/teammate/actions/workflows/oss-hygiene.yml/badge.svg)](https://github.com/placen-org/teammate/actions/workflows/oss-hygiene.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## What is this?
+## What this is
 
-Your first day as an SRE on a regulated team is terrifying. You don't know the codebase. You don't know what's compliant and what isn't. You can't search your team's tribal knowledge. And you're exactly one `git push origin main` away from explaining yourself to your VP.
+A Claude Code plugin that turns a private git repository into your team's queryable brain.
 
-`teammate` is a Claude Code plugin that bundles four things into one install:
-
-1. **A pluggable Obsidian vault** — every scanner writes evidence here. Your team's compliance state lives in markdown, locally, browsable in Obsidian as-is.
-2. **A local LLM + RAG** — Ollama-backed (`llama3.2:3b` by default), with a built-in mini-RAG over the vault and your team's `CLAUDE.md`. Ask `teammate ask "what's our K-ISMS-P posture?"` and get a grounded, cited answer on your laptop. gbrain-compatible if you have it; not required.
-3. **Pluggable compliance scanners** — ISO 27001:2022 Annex A + **K-ISMS-P** (the first English-language OSS to score against Korea's ISMS-Personal framework). 10 probes, three-tier results (pass / partial / fail), opt-in signed PDF attestations.
-4. **Production guardrails** — a `pre-push` hook that blocks direct pushes to `main`, plus a Claude Code `PreToolUse` hook that catches `terraform apply` on prod paths, `kubectl` mutations against prod contexts, `DROP TABLE` SQL, and other day-1 footguns.
-
-Everything runs locally. No telemetry. No cloud calls. Designed to be installed by a new hire in their first hour and used every day after.
+- **The brain lives in git.** A normal private repo. `CLAUDE.md` at the root, `.claude/skills/`, `.claude/rules/`, `docs/`, `knowledge/`. Plain markdown — no proprietary format.
+- **Each engineer has a local index.** `teammate init` indexes every markdown file into a sqlite-vec database on their laptop. ~10 seconds per brain.
+- **Queries are local.** `teammate ask "what's our deploy procedure?"` streams an answer from a local LLM (Ollama) with citations to the markdown files it pulled facts from. No cloud round-trip.
+- **Obsidian works out of the box.** Point Obsidian at the cloned repo and the team's brain becomes a beautiful linked notebook. Nothing to configure.
+- **Sharing is just git.** When someone updates a runbook, they `git push`. When you want the latest brain, you `git pull`. The CI pipeline pre-builds the index as a release artifact for fast onboarding.
 
 ```
-                    ┌──────────────────────────────────────┐
-                    │   compliance-vault/   (the nucleus)  │
-                    │   — Obsidian-format markdown         │
-                    │   — version-control or local-only    │
-                    └──────────┬───────────────────────────┘
-                               │
-       ┌─────────────┬─────────┼──────────────┬──────────────────┐
-       ▼             ▼         ▼              ▼                  ▼
-   ┌────────┐   ┌─────────┐ ┌────────┐  ┌────────────┐    ┌──────────┐
-   │ score  │   │  watch  │ │ attest │  │ ask-vault  │    │ MCP      │
-   │ probes │   │ (RSS,   │ │ (PDF + │  │ (Ollama +  │    │ server   │
-   │        │   │ NVD)    │ │  sig)  │  │  RAG)      │    │ (vault   │
-   └────────┘   └─────────┘ └────────┘  └────────────┘    │ resource)│
-       ▲             ▲         ▲              ▲          └──────────┘
-       │             │         │              │                  ▲
-       └─────────────┴─────────┴──────────────┴──────────────────┘
-                                  │
-                       Claude Code plugin spec
-                                  │
-                       hooks/ (pre-push, PreToolUse)
-                       skills/  (5 skill files)
-                       .claude-plugin/plugin.json
+            ┌──────────────────────────────────────────┐
+            │  Team's PRIVATE git repository           │
+            │  (the source of truth)                   │
+            │                                          │
+            │  CLAUDE.md                               │
+            │  .claude/skills/   .claude/rules/        │
+            │  docs/   knowledge/                      │
+            │  .github/workflows/brain-ci.yml          │
+            └──────────────────────┬───────────────────┘
+                                   │ git clone / pull
+                                   ▼
+            ┌──────────────────────────────────────────┐
+            │  Each engineer's laptop                  │
+            │  (the derived state)                     │
+            │                                          │
+            │  Ollama  +  sqlite-vec index             │
+            │  Claude Code  +  teammate plugin         │
+            │  Obsidian (optional)                     │
+            │  gbrain (optional, auto-detected)        │
+            └──────────────────────────────────────────┘
 ```
 
-## Install
+---
 
-One line, after [Claude Code](https://claude.ai/code) is set up:
+## Initial setup
+
+Two flows. The team lead runs `scaffold` once. Each engineer runs `init` once per laptop.
+
+### Flow A — TEAM LEAD: create the team-brain repo (one-time)
+
+You're setting up the brain for your team. You'll do this once for the org.
+
+**1. Install teammate.**
 
 ```bash
+pip install claude-teammate
+# or, if your team already uses Claude Code's plugin marketplace:
 claude plugin install placen-org/teammate
 ```
 
-Then on the first run, `/init-teammate` (or `teammate init` in your shell):
+**2. Scaffold an empty team-brain directory.**
+
+```bash
+teammate scaffold ~/team-brain --team-name "<your-team-name>"
+cd ~/team-brain
+```
+
+You now have a templated repo with:
+
+```
+team-brain/
+├── CLAUDE.md                              ← global team rules
+├── .claude/
+│   ├── skills/example-skill/SKILL.md      ← seed skill (replace)
+│   └── rules/{commit,test}.md             ← split rules
+├── docs/
+│   ├── architecture/                      ← decision records
+│   ├── runbooks/README.md                 ← on-call playbooks
+│   └── onboarding/README.md               ← new-hire walkthrough
+├── knowledge/
+│   ├── people.md                          ← who owns what
+│   ├── services.md                        ← what runs where
+│   └── decisions/0001-use-team-brain.md   ← seed ADR
+└── .github/workflows/brain-ci.yml         ← markdown lint + index build
+```
+
+The `TEAM-NAME` placeholder in every seed file is substituted with the value you passed to `--team-name`.
+
+**3. Make it a git repo and push.**
+
+```bash
+git init -b main
+git add -A
+git commit -m "init: team-brain for <your-team>"
+git remote add origin git@github.com:<your-org>/team-brain.git    # private repo
+git push -u origin main
+```
+
+Done. The brain is now live. Anyone on the team can clone it.
+
+**4. (Optional) Wire up the GitHub Actions pipeline.**
+
+The bundled `.github/workflows/brain-ci.yml` does three things on every push to `main`:
+
+- Lints all markdown files (markdownlint).
+- Verifies internal markdown links resolve.
+- Builds the sqlite-vec index in CI and attaches it as a Release artifact when you tag a version. Engineers can `teammate index pull` to skip local re-embedding.
+
+If you tag your first release:
+
+```bash
+git tag v0.1.0
+git push --tags
+```
+
+The workflow runs, builds `team-brain-index.sqlite`, attaches it to the GitHub Release. New hires download it instead of re-embedding locally — saves ~5 minutes on first setup.
+
+**5. Tell your team to clone it.**
+
+That's it on your side. Send the team-brain repo URL to the team. They each follow Flow B.
+
+### Flow B — ENGINEER: set up teammate locally (per-laptop, one-time)
+
+You're an engineer joining a team that already has a brain. Do this once per laptop.
+
+**1. Install Claude Code if you don't already have it.**
+
+```bash
+# Mac/Linux
+curl -fsSL https://claude.ai/install.sh | sh
+```
+
+**2. Install teammate.**
+
+```bash
+pip install claude-teammate
+# or via the Claude Code plugin marketplace:
+claude plugin install placen-org/teammate
+```
+
+**3. Clone the team-brain repo.**
+
+```bash
+git clone git@github.com:<your-org>/team-brain.git ~/team-brain
+cd ~/team-brain
+```
+
+**4. Run `teammate init` from inside the brain.**
 
 ```bash
 teammate init
 ```
 
-That command:
+This:
 
-- Scaffolds `compliance-vault/` (with a `.gitignore` so it stays local-only by default)
-- Installs the `pre-push` hook into `.git/hooks/` (refuses to clobber any existing hook unless you pass `--force`)
-- Detects [Ollama](https://ollama.com/download) and tells you which models to pull (`llama3.2:3b`, `nomic-embed-text`)
-- Detects [gbrain](https://gstack.dev) if you have it and offers to register the vault as a source
-- Builds the initial vault index
+- Confirms `CLAUDE.md` is present (i.e., this is a team-brain repo).
+- Detects whether Ollama is running. If not, prints the install hint.
+- Detects whether `gbrain` is installed (auto-detected; optional).
+- Indexes every markdown file in the brain into `.teammate-cache/vault.sqlite`. ~10 seconds for a typical brain (dozens to hundreds of markdown files).
 
-Total runtime: ~10 seconds. Total dependencies you actually have to install: zero (Ollama + gbrain are optional).
-
-## Use
-
-### Ask the vault anything
+**5. (Strongly recommended) Install Ollama for the local LLM.**
 
 ```bash
-teammate ask "what's our current K-ISMS-P posture and which controls are failing?"
+# Mac
+brew install ollama
+ollama serve &
+ollama pull llama3.2:3b
+ollama pull nomic-embed-text
 ```
 
-Streams a grounded answer from your local LLM, citing `compliance-vault/` markdown files for every fact. Works offline. If Ollama isn't running, falls back to keyword search and tells you how to start it.
-
-### Score the repo
+Now `teammate ask` works:
 
 ```bash
-teammate score
+teammate ask "what's our deploy procedure?"
+teammate ask "who owns the auth service?"
+teammate ask "why did we choose Postgres?"
 ```
 
-Output:
+You'll get streamed answers grounded in the team's own markdown, with citations to the source files. Everything happens on your laptop.
 
-```
-teammate score — overall: 73.3%  (pass=11 partial=4 fail=0 n/a=0 indet=0)
-target: /Users/.../my-team-repo
-commit: abc123def
-
-probe                   result                  framework:control       severity
-----------------------  ----------------------  ----------------------  ----------------------
-codeowners-exists       pass                    iso-27001:A.5.2         medium
-codeowners-exists       pass                    k-isms-p:2.1.3          medium
-branch-protection       partial                 iso-27001:A.8.32        high
-secrets-scan            pass                    iso-27001:A.8.24        critical
-tf-state-encryption     partial                 iso-27001:A.8.24        critical
-dependency-pinning      pass                    iso-27001:A.8.30        high
-oss-hygiene-workflow    pass                    iso-27001:A.5.36        medium
-pre-commit-config       pass                    iso-27001:A.8.25        medium
-license-present         pass                    iso-27001:A.5.32        medium
-security-md-present     pass                    iso-27001:A.5.34        high
-dependabot-or-renovate  partial                 iso-27001:A.8.30        high
-```
-
-`partial` results promote to `pass`/`fail` when you re-run with `--as-admin` and a `GITHUB_TOKEN` that has `admin:repo` scope. The `partial` tier exists because new SREs almost never have repo-admin on day 1 — the tool is honest about what it can verify locally vs what needs the team's GitHub.
-
-### Generate a signed audit PDF
+**6. (Optional) Set up Obsidian.**
 
 ```bash
-teammate score --sign
+# Open Obsidian, choose "Open folder as vault", point at ~/team-brain
 ```
 
-Opens an interactive sigstore keyless OAuth flow (browser popup), then writes a `.pdf`, `.sig`, and `.crt` into `compliance-vault/attestations/`. An external auditor can verify with:
+Obsidian's graph view and backlinks work natively because the brain is plain markdown. No teammate-specific Obsidian plugin required.
+
+**7. (Optional) Wire up the Claude Code MCP server.**
+
+If you want Claude Code to be able to query the brain via MCP (recommended), add to your `.claude/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "teammate-brain": {
+      "command": "python",
+      "args": ["-m", "teammate.mcp_server"],
+      "env": {
+        "TEAMMATE_BRAIN_ROOT": "/Users/<you>/team-brain"
+      }
+    }
+  }
+}
+```
+
+Now Claude Code can read `brain://CLAUDE.md`, `brain://skills/<name>`, `brain://docs/<path>`, etc., as MCP resources, and call the `brain.search(query, k)` tool when it needs to retrieve context.
+
+---
+
+## Daily use
 
 ```bash
-sigstore verify-blob compliance-vault/attestations/2026-04-26-1030.pdf \
-  --signature compliance-vault/attestations/2026-04-26-1030.pdf.sig \
-  --certificate compliance-vault/attestations/2026-04-26-1030.pdf.crt \
-  --certificate-identity https://github.com/placen-org/teammate/.github/workflows/sign-example.yml@refs/heads/main \
-  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+# Whenever you're unsure
+teammate ask "what's the on-call rotation?"
+teammate ask "summarize ADRs from this quarter"
+
+# When the team-brain repo has updates from teammates
+cd ~/team-brain && git pull
+teammate init    # re-runs the index (incremental — only re-embeds changed files)
+
+# When YOU update something
+echo "..." >> docs/runbooks/new-procedure.md
+git commit -am "runbook: new procedure"
+git push
+# CI re-builds the index, your teammates get it on their next pull
 ```
 
-If verification exits zero, the auditor knows the PDF is exactly what teammate produced at the recorded timestamp, untampered. See `docs/SECURITY.md` for the threat model — it's important to understand what the signature does and doesn't prove.
+---
 
-### Watch external advisories
+## Architecture
 
-```bash
-teammate watch
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                          TEAMMATE PLUGIN                               │
+│                                                                        │
+│  ┌──────────────────────────────────────────────────────────────────┐  │
+│  │  Brain (read-only)                                               │  │
+│  │   - iter_markdown(): yields every .md with frontmatter + body    │  │
+│  │   - section(name): claude/skills/rules/docs/knowledge/other      │  │
+│  │   - stats(): counts per section                                  │  │
+│  └──────────────────────────────────────────────────────────────────┘  │
+│         ▲                                  ▲                           │
+│         │ reads                            │ reads                     │
+│         │                                  │                           │
+│  ┌──────┴──────────────┐         ┌─────────┴────────────────────┐     │
+│  │  RAG layer          │         │  MCP server                  │     │
+│  │   - Ollama HTTP     │         │   - resources/list, read     │     │
+│  │   - sqlite-vec      │         │   - tools/call brain.search  │     │
+│  │   - embeddings or   │         │   - stdio JSON-RPC           │     │
+│  │     keyword fallback│         │                              │     │
+│  └─────────────────────┘         └──────────────────────────────┘     │
+│         ▲                                  ▲                           │
+│         │ teammate ask                     │ Claude Code               │
+│         │                                  │ (MCP client)              │
+│         │                                                              │
+│  ┌──────┴───────────────────────────────────────────────────────────┐  │
+│  │  CLI                                                             │  │
+│  │   teammate scaffold <dir>   — team lead, one-time per org        │  │
+│  │   teammate init             — engineer, one-time per laptop      │  │
+│  │   teammate ask "<query>"    — local-LLM Q&A with citations       │  │
+│  │   teammate index [--rebuild] — refresh the local sqlite-vec      │  │
+│  │   teammate stats            — show what's in the brain           │  │
+│  └──────────────────────────────────────────────────────────────────┘  │
+│                                                                        │
+└────────────────────────────────────────────────────────────────────────┘
 ```
 
-Pulls KISA RSS + NVD CVE 2.0 feeds, diffs against the last run, writes new items into `compliance-vault/advisories/<timestamp>.md`. Run weekly or via cron.
+### Why this architecture
 
-### Federate the vault across the team (the Teamspace alternative)
+| Choice | Why |
+|---|---|
+| **sqlite-vec** for the vector store | Single-file, ~1MB extension, polyglot, mature. The index is one `.sqlite` file — git-LFS-friendly, fits a GitHub Release artifact. |
+| **Ollama** for the local LLM | Universal in 2026, no API key, runs offline, integrates without custom adapters. Default models: `llama3.2:3b`, `nomic-embed-text`. |
+| **Claude Code itself as the agent layer** | We don't bring LangChain or LlamaIndex. Claude Code does the reasoning; teammate just exposes the brain as MCP resources + a search tool. Tiny dependency footprint. |
+| **git as the federation layer** | The team already has private git. No new infrastructure. `git log` is the audit trail. `git blame` tells you who wrote what, when. |
+| **Markdown as the format** | Obsidian opens it natively. Diff-friendly. Code-review-friendly. Lasts forever. |
 
-Claude Teamspace gives a team shared workspace state in Anthropic's cloud. Regulated teams can't put compliance state there. They CAN put it in a private git repo they already own. `teammate sync` does that:
+### What we explicitly chose NOT to use
 
-```bash
-# One-time per laptop: bind to the team's private vault repo
-teammate sync init git@github.com:acme-corp/team-vault.git
+- **PGlite + pgvector** — heavier (~3MB + Node runtime), Python integration is weaker than sqlite-vec. Reconsider for v0.3 if the brain ever grows into a structured knowledge graph.
+- **LangChain / LlamaIndex** — over-engineered when Claude Code is the agent. Adds ~50MB of deps for no value.
+- **Cloud vector DBs** (Pinecone, Weaviate Cloud) — defeats the local-sovereign premise.
+- **A teammate cloud service** — there isn't one. There never will be. The team's brain stays on the team's git host.
 
-# After every score run, push your attestations to the team
-teammate score
-teammate sync push
-
-# Before scoring, pull the team's latest state
-teammate sync pull
-
-# See where you are
-teammate sync status
-```
-
-Every attestation is cryptographically dual-signed (git commit by the engineer, PDF body by sigstore/Fulcio). The team timeline is just `git log` — `git blame` tells you who attested what, when, against which commit. Works on private GitHub, GitHub Enterprise, GitLab self-hosted, Gitea, anything that speaks git. Nothing leaves the team's jurisdiction.
-
-|  | Claude Teamspace | `teammate sync` |
-|---|---|---|
-| Data location | Anthropic cloud | Team's own private git host |
-| Subscription | Per-seat paid | Free, OSS |
-| Audit trail | Chat history | `git log` of cryptographically dual-signed attestations |
-| Air-gap capable | No | Yes (self-hosted GitLab, Gitea, etc.) |
-| Sovereignty | Anthropic's jurisdiction | Team's jurisdiction |
-| Required infra | Claude.ai for Teams | Private git (the team already has) |
-
-## Why does this exist
-
-A new SRE on day 1 of a regulated team has four problems at once:
-
-1. They don't know the codebase or the compliance posture.
-2. They have no auditable evidence of what the team's compliance state is on the day they joined.
-3. They're one keystroke away from breaking production.
-4. They can't keep up with new advisories.
-
-The OSS world treats each as a separate vertical. HR tools handle onboarding. GRC platforms handle compliance. Coding agents handle productivity. Local-LLM tools handle personal KM. Nobody has bundled them as one experience for the new-SRE-on-day-1 persona — and nobody speaks **K-ISMS-P** (Korea's ISMS-Personal compliance framework) in English-language OSS at all.
-
-`teammate` is that bundle. The vault is the nucleus, the local LLM makes it queryable, the scanners are pluggable, the guardrails are real.
-
-## What this is NOT
-
-- **Not a replacement for GitHub branch protection / RBAC / your IdP.** Hooks are defense in depth. A determined user can `chmod -x` them.
-- **Not a real-time vulnerability scanner.** `watch` polls public feeds; it doesn't check whether your stack is affected. Pair with your CVE/SBOM tooling.
-- **Not a substitute for a real audit.** Mechanical scoring tells an auditor "the team has the artifact" — not "the team operates correctly." See `docs/SECURITY.md`.
+---
 
 ## Configuration
 
-Most things are env-var configurable so a team can override without forking:
-
 | Variable | Default | What it does |
 |---|---|---|
-| `TEAMMATE_VAULT_ROOT` | `./compliance-vault` | Vault location |
-| `TEAMMATE_CATALOGS_DIR` | repo `catalogs/` | Override compliance catalogs (add internal controls) |
-| `TEAMMATE_HOOKS_DIR` | repo `hooks/` | Override bundled hooks |
-| `TEAMMATE_FORCE_INIT` | `0` | Allow `init` to overwrite an existing pre-push hook |
-| `TEAMMATE_OVERRIDE` | `0` | Bypass guardrail hooks for one push (use sparingly) |
-| `TEAMMATE_PROTECTED_BRANCHES` | `main master production prod release` | Branches the pre-push hook blocks |
-| `TEAMMATE_ADMIN_MODE` | `0` | With `GITHUB_TOKEN`, promotes partial results via `gh api` |
+| `TEAMMATE_BRAIN_ROOT` | `cwd` | Override the brain root (useful when running the MCP server from a fixed path). |
+| `TEAMMATE_FORCE_INIT` | `0` | Allow `init` to overwrite an existing pre-push hook. |
+| `TEAMMATE_OVERRIDE` | `0` | Bypass guardrail hooks for one push (use sparingly). |
+
+---
 
 ## Project structure
 
 ```
 teammate/
-  .claude-plugin/plugin.json          # Claude Code plugin manifest
-  skills/                             # 6 skill files
-    init-teammate/SKILL.md
-    score-compliance/SKILL.md
-    attest-compliance/SKILL.md
-    watch-advisories/SKILL.md
-    ask-vault/SKILL.md
-    sync-vault/SKILL.md               # the Teamspace-alternative federation
-  hooks/
-    pre-push                          # raw bash, copied to .git/hooks/
-    pre-tool-use-guardrail.sh         # Claude Code PreToolUse hook
-  catalogs/
-    iso-27001-annex-a.yaml            # 16 controls (ISO 27001:2022)
-    k-isms-p.yaml                     # 25 controls (K-ISMS-P 2.x, EN summaries)
   src/teammate/
-    cli.py                            # `teammate` entry point (click)
-    init.py                           # `teammate init` orchestrator
-    score.py                          # 10 probes + score aggregation
-    vault.py                          # Obsidian-format markdown writer
-    attest.py                         # PDF + opt-in sigstore signing
-    watch.py                          # KISA RSS + NVD JSON 2.0 diff
-    sync.py                           # git-backed team vault federation
-    catalogs.py                       # YAML loader + Probe-Control mapping
-    mcp_server.py                     # JSON-RPC MCP server (vault as resource)
+    cli.py                   ← `teammate` entry point
+    brain.py                 ← read-only Brain over a team-brain repo
+    init.py                  ← scaffold + init orchestrators
+    mcp_server.py            ← JSON-RPC MCP server
     rag/
-      __init__.py
-      ollama.py                       # Ollama HTTP client
-      index.py                        # sqlite-backed vault index
-      ask.py                          # retrieve + LLM orchestration
-      gbrain.py                       # gbrain compatibility layer
-  examples/
-    attestation.pdf                   # pre-signed example (signed in CI)
-    attestation.pdf.sig
-    attestation.pdf.crt
-  docs/
-    OSS_HYGIENE.md                    # the no-employer-names rule
-    SECURITY.md                       # threat model + verification
-    QUICKSTART.md                     # 90-second read
+      ollama.py              ← Ollama HTTP client
+      index.py               ← sqlite-vec indexer
+      ask.py                 ← retrieve + LLM stream
+      gbrain.py              ← gbrain compatibility shim
+  templates/team-brain-skeleton/   ← bundled team-brain template
+  hooks/
+    pre-push                 ← raw bash, optional
+    pre-tool-use-guardrail.sh ← Claude Code PreToolUse hook, optional
+  skills/
+    init-teammate/SKILL.md   ← `/init-teammate` skill
+    ask-vault/SKILL.md       ← `/ask-vault` skill
+  .claude-plugin/plugin.json
   .github/workflows/
-    ci.yml                            # pytest + ruff
-    oss-hygiene.yml                   # blocks employer names in source
-    sign-example.yml                  # workflow_dispatch sigstore signer
-  tests/                              # pytest + bats
-  pyproject.toml
+    ci.yml
+    oss-hygiene.yml
+  tests/                     ← 24 passing tests
+  docs/
+    OSS_HYGIENE.md
+    QUICKSTART.md
   README.md
-  SECURITY.md
+  pyproject.toml
   LICENSE
-  SOURCES.md                          # K-ISMS-P provenance
 ```
+
+---
 
 ## Contributing
 
-This is OSS for any team to adopt. The OSS hygiene workflow blocks any commit that hardcodes employer names, personal emails, or non-placeholder AWS account IDs in source code. See `docs/OSS_HYGIENE.md` for the policy and the playbook for adding new patterns.
+This is OSS for any team to adopt. The OSS hygiene workflow blocks any commit that hardcodes employer names, personal emails, or non-placeholder AWS account IDs in source code. See `docs/OSS_HYGIENE.md` for the policy.
 
-Issues and PRs welcome. The full ~80-control K-ISMS-P catalog is tracked in [issue #1](https://github.com/placen-org/teammate/issues/1) — translation contributions especially appreciated from Korean-speaking compliance practitioners.
+Issues and PRs welcome.
 
 ## License
 
-MIT — see [LICENSE](LICENSE). The K-ISMS-P catalog is a derivative work; see [SOURCES.md](SOURCES.md) for provenance and the legal note on KISA's official framework.
+MIT — see [LICENSE](LICENSE).

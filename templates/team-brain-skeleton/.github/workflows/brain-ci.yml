@@ -1,0 +1,72 @@
+name: Brain CI
+
+# Validates and pre-builds the team-brain index on every push to main.
+# Runs three jobs:
+#   1. md-lint     — markdownlint over all .md files
+#   2. link-check  — verifies internal markdown links resolve
+#   3. build-index — runs Ollama in a container, builds sqlite-vec
+#                    index, attaches as a Release artifact so engineers
+#                    can `teammate index pull` instead of re-embedding.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  md-lint:
+    name: Lint markdown
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: DavidAnson/markdownlint-cli2-action@v20
+        with:
+          globs: "**/*.md"
+
+  link-check:
+    name: Check internal links
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: lycheeverse/lychee-action@v2
+        with:
+          args: --offline --verbose --no-progress './**/*.md'
+          fail: true
+
+  build-index:
+    name: Build team-brain index (release artifact)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    needs: [md-lint, link-check]
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install teammate (read-only mode)
+        run: |
+          python -m pip install --upgrade pip
+          pip install claude-teammate
+
+      - name: Install + start Ollama
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          ollama serve &
+          sleep 5
+          ollama pull nomic-embed-text
+
+      - name: Build sqlite-vec index
+        run: |
+          teammate index --rebuild --output team-brain-index.sqlite
+
+      - name: Upload as release artifact
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: team-brain-index.sqlite

@@ -1,30 +1,23 @@
 {
   "name": "teammate",
-  "version": "0.1.0",
-  "description": "Battle buddy for new SREs joining regulated teams. Pluggable Obsidian vault + local LLM (Ollama, gbrain-compatible) + ISO 27001 / K-ISMS-P compliance scanners + production guardrail hooks. One install, day-1 ready.",
+  "version": "0.2.0",
+  "description": "Your team's brain in your team's git repo. Local-LLM-queryable, Obsidian-friendly. The Teamspace alternative for teams who can't put context in someone else's cloud.",
   "homepage": "https://github.com/placen-org/teammate",
   "license": "MIT",
   "skills": [
     "skills/init-teammate/SKILL.md",
-    "skills/score-compliance/SKILL.md",
-    "skills/attest-compliance/SKILL.md",
-    "skills/watch-advisories/SKILL.md",
-    "skills/ask-vault/SKILL.md",
-    "skills/sync-vault/SKILL.md"
+    "skills/ask-vault/SKILL.md"
   ],
-  "hooks": {
-    "PreToolUse": "hooks/pre-tool-use-guardrail.sh"
-  },
   "mcp_servers": {
-    "teammate-vault": {
+    "teammate-brain": {
       "command": "python",
       "args": ["-m", "teammate.mcp_server"],
-      "description": "Exposes the team's compliance vault as MCP resources."
+      "description": "Exposes the team brain (CLAUDE.md, skills, rules, docs, knowledge) as MCP resources + a brain.search tool."
     }
   },
   "requires": {
     "python": ">=3.11",
-    "ollama": "optional (for the local-LLM RAG path)",
+    "ollama": "optional (for the local-LLM RAG path; falls back to keyword search)",
     "gbrain": "optional (cross-machine memory sync)"
   }
 }

@@ -1,92 +1,71 @@
 # Quickstart — 90 seconds
 
-You just joined the team. Your manager pointed you at this README. Here's the fast path.
+You just joined a team that uses teammate. Here's the fast path.
 
-## Step 1 — Install Claude Code (if you don't have it)
+## Step 1 — Install Claude Code
 
 ```bash
-# Mac/Linux
 curl -fsSL https://claude.ai/install.sh | sh
 ```
 
 ## Step 2 — Install teammate
 
 ```bash
+pip install claude-teammate
+# or:
 claude plugin install placen-org/teammate
 ```
 
-## Step 3 — Run init
+## Step 3 — Clone the team-brain
 
 ```bash
-cd /path/to/your-team-repo
+git clone git@github.com:<your-org>/team-brain.git ~/team-brain
+cd ~/team-brain
+```
+
+## Step 4 — Run init
+
+```bash
 teammate init
 ```
 
-You'll see a five-line summary. If anything fails, the message tells you exactly what to do.
+You'll see a four-line summary. If anything fails, the message tells you what to do.
 
-## Step 4 — Get a baseline score
-
-```bash
-teammate score
-```
-
-Output is a terse table. The first run is your day-1 baseline.
-
-## Step 5 — (Optional but worth it) install Ollama
+## Step 5 — Install Ollama (recommended)
 
 ```bash
-# Mac
 brew install ollama
 ollama serve &
 ollama pull llama3.2:3b
 ollama pull nomic-embed-text
 ```
 
-Now `teammate ask` works:
+## Step 6 — Ask the brain
 
 ```bash
-teammate ask "what's our current K-ISMS-P posture?"
+teammate ask "what does this team do?"
+teammate ask "what's our deploy procedure?"
 ```
 
-You'll get a streamed answer grounded in the vault on your laptop, no cloud.
-
-## Optional Claude Code wiring
-
-If you want the `PreToolUse` guardrail active inside Claude Code, add to `.claude/settings.json` in the team repo:
-
-```json
-{
-  "hooks": {
-    "PreToolUse": ".claude-plugins/teammate/hooks/pre-tool-use-guardrail.sh"
-  }
-}
-```
+You're done. Five-minute total wall-clock from zero to a working local-LLM Q&A
+over your team's brain.
 
 ## Daily flow
 
 ```bash
-teammate score             # before lunch, after a refactor
-teammate ask "..."         # whenever you're unsure
-teammate watch             # weekly cron
-teammate score --sign      # before audit window
-```
+teammate ask "..."          # whenever you're unsure
+git pull                    # when teammates update the brain
+teammate init               # re-runs the index (incremental)
 
-## When you forget
-
-```bash
-teammate --help
-teammate score --help
+# When YOU update the brain:
+echo "..." >> docs/runbooks/new-procedure.md
+git commit -am "runbook: new procedure"
+git push                    # CI rebuilds the index for everyone else
 ```
 
 ## When something goes wrong
 
-- **Hooks not running?** `cat .git/hooks/pre-push` should show our script. Re-run `teammate init`.
+- **`teammate init` says "no CLAUDE.md"?** You're not in the team-brain repo. Check `pwd`.
 - **Ollama not answering?** `curl http://localhost:11434/api/tags` should return JSON. If not, `ollama serve`.
-- **Vault empty?** Run `teammate score` — the vault populates on the first run.
-- **Indexing failed?** `teammate ask --rebuild` forces a clean index.
-
-## What to do next
-
-- Read `docs/SECURITY.md` for the threat model on signed attestations.
-- Read `docs/OSS_HYGIENE.md` if you're going to contribute back.
-- Check `compliance-vault/latest.md` after a `score` run — that's your team's posture in markdown.
+- **Index empty?** Run `teammate index --rebuild` to force a clean rebuild.
+- **`teammate ask` returns just file paths, no answer?** Ollama isn't running. Start it; teammate falls back to keyword search when it's down.

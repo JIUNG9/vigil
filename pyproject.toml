@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "claude-teammate"
-version = "0.1.0"
-description = "Battle buddy for new SREs joining regulated teams: pluggable vault + local LLM + compliance scoring + production guardrails, in one Claude Code plugin."
+version = "0.2.0"
+description = "Your team's brain in your team's git repo. Local-LLM-queryable, Obsidian-friendly. The Teamspace alternative for teams who can't put context in someone else's cloud."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
@@ -14,47 +14,39 @@ authors = [
 ]
 keywords = [
   "claude-code",
-  "compliance",
-  "iso-27001",
-  "k-isms-p",
-  "obsidian",
-  "ollama",
+  "team-knowledge",
   "rag",
+  "ollama",
+  "obsidian",
+  "mcp",
+  "local-first",
   "site-reliability-engineering",
-  "sre",
 ]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
   "Intended Audience :: Developers",
-  "Intended Audience :: System Administrators",
   "License :: OSI Approved :: MIT License",
   "Operating System :: MacOS",
   "Operating System :: POSIX :: Linux",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
-  "Topic :: Security",
-  "Topic :: System :: Systems Administration",
+  "Topic :: Documentation",
+  "Topic :: Software Development :: Documentation",
 ]
 
 dependencies = [
   "click>=8.1",
   "pyyaml>=6.0",
-  "reportlab>=4.0",
-  "feedparser>=6.0",
   "rich>=13.0",
 ]
 
 [project.optional-dependencies]
-sign = [
-  "sigstore>=3.0",
-  "cryptography>=42.0",
-]
 rag = [
-  # Local LLM RAG layer. Ollama itself is installed separately (it's a binary).
-  # These are minimal Python helpers; the real LLM call is via HTTP to localhost:11434.
+  # Local LLM RAG layer. Ollama itself is installed separately.
   "httpx>=0.27",
+  "sqlite-vec>=0.1.6",
 ]
 dev = [
   "pytest>=8.0",
@@ -62,7 +54,7 @@ dev = [
   "ruff>=0.6",
 ]
 all = [
-  "claude-teammate[sign,rag,dev]",
+  "claude-teammate[rag,dev]",
 ]
 
 [project.scripts]
@@ -76,19 +68,19 @@ Issues = "https://github.com/placen-org/teammate/issues"
 [tool.hatch.build.targets.wheel]
 packages = ["src/teammate"]
 
+[tool.hatch.build.targets.wheel.shared-data]
+"templates/team-brain-skeleton" = "share/teammate/team-brain-skeleton"
+
 [tool.hatch.build.targets.sdist]
 include = [
   "src/teammate",
-  "catalogs",
+  "templates",
   "hooks",
   "skills",
   ".claude-plugin",
-  "examples",
   "docs",
   "README.md",
   "LICENSE",
-  "SECURITY.md",
-  "SOURCES.md",
 ]
 
 [tool.ruff]

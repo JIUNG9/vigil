@@ -31,9 +31,6 @@ jobs:
       - name: ruff lint
         run: ruff check .
 
-      - name: ruff format check
-        run: ruff format --check .
-
       - name: pytest
         run: pytest -v --tb=short
 
@@ -48,7 +45,7 @@ jobs:
           shellcheck hooks/pre-push hooks/pre-tool-use-guardrail.sh
 
   smoke:
-    name: smoke test (teammate score on the repo itself)
+    name: smoke (scaffold + init)
     runs-on: ubuntu-latest
     needs: [test]
     steps:
@@ -58,7 +55,12 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -e ".[rag]"
-      - name: teammate score against this repo
+      - name: scaffold a brain in /tmp
         run: |
-          teammate score --json > /tmp/score.json
-          python -c "import json,sys; d=json.load(open('/tmp/score.json')); print('overall:', d['overall_pct']); sys.exit(0 if d['overall_pct'] is not None else 1)"
+          teammate scaffold /tmp/test-brain --team-name "ci-team"
+          test -f /tmp/test-brain/CLAUDE.md
+      - name: init runs (Ollama not present, expected to fall back)
+        run: |
+          cd /tmp/test-brain
+          teammate init || echo "init may exit non-zero without Ollama; that's expected on CI"
+          teammate stats

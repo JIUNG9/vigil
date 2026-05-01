@@ -1,53 +1,51 @@
 ---
 name: init-teammate
-description: Set up teammate on this repo for the first time. Scaffolds compliance-vault/, installs git pre-push hook, detects Ollama (local LLM) and gbrain (cross-machine memory), builds the initial vault index. Idempotent — re-run safely.
+description: Set up teammate on this laptop in an already-cloned team-brain repo. Detects Ollama, builds the local sqlite-vec index of every markdown file, optionally registers gbrain. For team leads creating a NEW team-brain repo, use `teammate scaffold` first instead.
 ---
 
 # /init-teammate
 
-One-command day-1 setup for a new SRE joining a team.
+One-command per-laptop setup for an engineer who just cloned the team-brain repo.
 
 ## When to invoke
 
-- A new engineer just cloned the repo for the first time.
-- The user mentions "set up teammate", "first run", "day 1", or "I just joined".
-- After a `git clone` of a repo that ships teammate as a plugin.
+- A new engineer just cloned the team's brain repo and wants to start using it.
+- The user mentions "set up teammate", "first run on this laptop", "I just joined".
+
+## Two distinct flows
+
+- **Team lead setting up the brain for the first time:** `teammate scaffold <dir>`.
+  Creates a fresh team-brain repo from the bundled template. Run once per
+  organization. Outputs a skeleton ready to commit + push to a private remote.
+
+- **Engineer joining an existing team brain (this skill):** `teammate init`.
+  Run inside an already-cloned brain repo. Detects + indexes + sets up local
+  query path. Run once per laptop.
 
 ## Behavior
 
-1. **Vault** — create `compliance-vault/` with the documented Obsidian layout:
-   `latest.md`, `history/`, `controls/{iso-27001,k-isms-p}/`, `advisories/`,
-   `attestations/`. Drop `compliance-vault/.gitignore` containing `*` so
-   the vault is local-by-default. Teams who want to track compliance
-   history in git remove that gitignore.
+1. **Brain detection.** Confirms `CLAUDE.md` exists at the cwd (i.e., this is
+   a team-brain repo). If not, refuses with the hint to run `teammate scaffold`
+   first.
 
-2. **Hooks** — copy `hooks/pre-push` into `.git/hooks/pre-push`. **Refuses
-   if a pre-push hook already exists** unless `TEAMMATE_FORCE_INIT=1` is set
-   or the user passes `--force`. The Claude Code `PreToolUse` hook is
-   configured via `.claude-plugin/plugin.json` automatically.
+2. **Ollama detection.** Checks `localhost:11434`. If running, lists models
+   and flags any missing required ones. If not running, prints install link
+   (https://ollama.com/download) + the two pull commands. Does NOT auto-install.
 
-3. **Ollama** — check if Ollama is running on `localhost:11434`. If yes,
-   list pulled models and flag any missing required models. If no, print
-   the install link (https://ollama.com/download) and the two pull commands
-   (`ollama pull llama3.2:3b`, `ollama pull nomic-embed-text`). Does NOT
-   auto-install — that needs explicit user consent.
+3. **gbrain detection.** Checks if `gbrain` binary is on PATH. Optional
+   register-as-source pass with `--register-gbrain`.
 
-4. **gbrain** — check if `gbrain` is on PATH. If yes, mention it and offer
-   `--register-gbrain` to register the vault as a gbrain source. If no,
-   note that the built-in mini-RAG will run instead.
-
-5. **Index** — build the initial vault index from any existing
-   `compliance-vault/`, the team's root `CLAUDE.md`, `docs/*.md`, and
-   `README.md`. Stores in `.teammate-cache/vault.sqlite`. Re-uses Ollama
-   embeddings if available, falls back to keyword scoring if not.
+4. **Local index build.** Runs the indexer over every markdown file in the brain
+   (CLAUDE.md, .claude/, docs/, knowledge/). Writes to `.teammate-cache/vault.sqlite`
+   (sqlite-vec). Re-uses Ollama embeddings if available; falls back to keyword
+   scoring if not.
 
 ## Run
 
 ```bash
+cd /path/to/team-brain
 teammate init
-# or, to overwrite an existing pre-push hook:
-TEAMMATE_FORCE_INIT=1 teammate init
-# or, to also register the vault with gbrain:
+# or, with gbrain registration:
 teammate init --register-gbrain
 ```
 
@@ -57,20 +55,18 @@ Per-step status table:
 
 ```
 teammate init —
-  ✓ vault: scaffolded at compliance-vault/
-  ✓ hooks: installed pre-push (.claude/settings.json untouched)
-  · ollama: not detected; install https://ollama.com/download then ollama pull llama3.2:3b
+  ✓ brain: detected at /path/to/team-brain: 23 markdown files (1 CLAUDE.md, 5 skills, 3 rules, 9 docs, 5 knowledge)
+  ✓ ollama: up. Required models present: llama3.2:3b, nomic-embed-text
   · gbrain: not on PATH; built-in mini-RAG will handle queries
-  ✓ index: indexed 7 files without embeddings (0 unchanged)
+  ✓ index: indexed 23 files with embeddings (0 unchanged)
 ```
 
 ## What blocks a successful init
 
-- An existing `.git/hooks/pre-push` (per the design's D4 decision). Resolve
-  by renaming the existing hook or running with `--force`.
+- No `CLAUDE.md` at the cwd. The user is in the wrong directory, OR they are
+  the team lead and need `teammate scaffold` first.
 
 ## What does NOT block
 
-- Ollama not running. The CLI will fall back to keyword retrieval and
-  print install hints — `init` still exits zero.
-- gbrain not installed. The built-in mini-RAG replaces it.
+- Ollama not running. `init` still exits zero; keyword search will work.
+- gbrain not installed. Built-in mini-RAG replaces it.
