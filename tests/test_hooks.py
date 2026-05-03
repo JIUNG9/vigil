@@ -10,7 +10,6 @@ from pathlib import Path
 
 import pytest
 
-
 REPO = Path(__file__).resolve().parent.parent
 PRE_PUSH = REPO / "hooks" / "pre-push"
 PRE_TOOL_USE = REPO / "hooks" / "pre-tool-use-guardrail.sh"

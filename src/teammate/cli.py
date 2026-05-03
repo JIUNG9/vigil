@@ -20,7 +20,9 @@ import click
 
 from teammate import __version__
 from teammate.brain import Brain
-from teammate.init import render_summary, run as run_init, scaffold as run_scaffold
+from teammate.init import render_summary
+from teammate.init import run as run_init
+from teammate.init import scaffold as run_scaffold
 from teammate.rag.ask import answer
 from teammate.rag.index import discover_indexable_files, index_paths
 from teammate.rag.ollama import OllamaClient

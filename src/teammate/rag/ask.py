@@ -89,7 +89,7 @@ def _keyword_score(text: str, terms: list[str]) -> float:
 
 
 def _tokenize_query(q: str) -> list[str]:
-    return [tok for tok in re.findall(r"[A-Za-z0-9가-힣\-_.]{2,}", q.lower())]
+    return list(re.findall(r"[A-Za-z0-9가-힣\-_.]{2,}", q.lower()))
 
 
 def retrieve(
@@ -210,8 +210,7 @@ def answer(
         f"## Answer\n"
     )
     try:
-        for chunk in ollama.generate(prompt, system=SYSTEM_PROMPT, stream=True):
-            yield chunk
+        yield from ollama.generate(prompt, system=SYSTEM_PROMPT, stream=True)
     except OllamaUnavailable:
         yield "\n\n(Ollama disconnected mid-stream. Try again.)\n"
     except OllamaError as exc:

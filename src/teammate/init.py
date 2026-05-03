@@ -16,7 +16,6 @@ them as `teammate scaffold` and `teammate init`.
 
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 from typing import Any
 
