@@ -62,9 +62,7 @@ if echo "$tool_name" | grep -iqE '^bash$|run_command'; then
     *"git push --force"*|*"git push -f "*|*"git push -f"$|*"git push origin +"*)
       block_msg="git push to a protected branch (or force push). Use a feature branch + PR."
       ;;
-    *"terraform apply"*"prod"*|*"terraform apply"*"production"*|\
-    *"prod"*"terraform apply"*|*"production"*"terraform apply"*|\
-    *"terraform destroy"*)
+    *"terraform apply"*"prod"*|*"prod"*"terraform apply"*|*"terraform destroy"*)
       block_msg="terraform apply/destroy against a prod-tagged path. Use plan-only first, then a reviewed apply."
       ;;
     *"kubectl apply"*"prod"*|*"kubectl delete"*"prod"*|\
