@@ -1,0 +1,71 @@
+# .teammate-naming.toml — team-brain naming convention
+#
+# Pattern: {prefix}-{category}-{domain}-{service}[-{submodule}]-{type}
+#
+# Hard rules:
+#   1. kebab-case charset only ([a-z0-9-]); no UPPER, no '_', no '--',
+#      no leading/trailing hyphen, no token starting with a digit.
+#   2. Token count within [min_tokens..max_tokens].
+#   3. Prefix in [token.prefix].values.
+#   4. Category in [token.category].values.
+#   5. Domain in [token.domain].values.
+#   6. Service in [token.service].values when [token.service].strict = true.
+#   7. Type in [token.type].values; type is always the last token.
+#   8. If a 6-token submodule slot is used, it must not duplicate any
+#      category or type token.
+#   9. No token may appear twice within one name.
+#  10. Names over [constraints].max_length emit WARN, not FAIL.
+#  11. Names listed under [exceptions].allow pass unchecked.
+#
+# This is a minimal default. Edit every list before adoption — the
+# 'acme' prefix is a placeholder. The full spec lives in docs/NAMING.md.
+
+[locale]
+language = "en"
+
+[token.prefix]
+values = ["acme"]
+strict = true
+
+[token.category]
+values = ["app", "infra", "lib", "ops", "doc", "poc"]
+strict = true
+
+[token.domain]
+# Replace with your domain codes. Two letters is a strong default;
+# `shared` is convention for org-wide repos that don't belong to one
+# domain.
+values = ["core", "data", "platform", "shared"]
+strict = true
+
+[token.service]
+# Service dictionary. Strict mode rejects undeclared services — adding
+# a new service is a PR to this list, by design.
+values = ["billing", "identity", "pricing"]
+strict = true
+
+[token.submodule]
+# Submodules are exceptional. Use only when one service legitimately
+# needs multiple repos of the same type (admin vs partner web,
+# b2c vs b2b api).
+recommend = ["admin", "partner", "consumer", "merchant", "b2b", "b2c"]
+forbid_duplicating = ["category", "type"]
+
+[token.type]
+values = [
+  "agw", "api", "worker", "web", "webview",
+  "ios", "android", "win", "did",
+  "sdk", "schema",
+  "tfstate", "tfmod", "k8s",
+  "docs",
+]
+strict = true
+
+[constraints]
+min_tokens = 5
+max_tokens = 6
+max_length = 50
+
+[exceptions]
+# Legacy / brand-mandated names that pre-date this convention.
+allow = []

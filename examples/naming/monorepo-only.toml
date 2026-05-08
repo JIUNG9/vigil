@@ -1,0 +1,44 @@
+# monorepo-only.toml — single repo. Convention applies to top-level
+# package / app directory names, not repo names.
+#
+# Pattern: mono-{category}-{domain}-{service}[-{submodule}]-{type}
+# The "mono" prefix is a single fixed token — it gives every directory a
+# stable grep-handle inside the monorepo even though there is only one
+# repo. Replace "mono" with your monorepo's short name if you prefer.
+
+[locale]
+language = "en"
+
+[token.prefix]
+values = ["mono"]
+strict = true
+
+[token.category]
+values = ["app", "lib", "infra", "ops", "doc"]
+strict = true
+
+[token.domain]
+values = ["core"]
+strict = true
+
+[token.service]
+values = ["billing", "identity", "pricing"]
+strict = true
+
+[token.submodule]
+recommend = []
+forbid_duplicating = ["category", "type"]
+
+[token.type]
+values = ["api", "worker", "web", "sdk", "tfmod"]
+strict = true
+
+[constraints]
+# 5..6 — same canonical bounds as the other templates. Submodule remains
+# optional; the "mono" prefix occupies the prefix slot.
+min_tokens = 5
+max_tokens = 6
+max_length = 40
+
+[exceptions]
+allow = []

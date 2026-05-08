@@ -1,0 +1,43 @@
+# strict-iac.toml — IaC-only repos. Categories trimmed to
+# {infra, ops}. Type list trimmed to the four shapes that actually
+# belong in a Terraform / Kubernetes monorepo galaxy.
+#
+# The service vocabulary is platform shapes, not product names —
+# infra repos describe the substrate, not the customer-facing product.
+
+[locale]
+language = "en"
+
+[token.prefix]
+values = ["acme"]
+strict = true
+
+[token.category]
+values = ["infra", "ops"]
+strict = true
+
+[token.domain]
+values = ["core", "data", "platform", "shared"]
+strict = true
+
+[token.service]
+values = ["network", "compute", "observability", "secrets", "ci"]
+strict = true
+
+[token.submodule]
+# Environment-as-submodule is a common IaC pattern. Use sparingly —
+# environments belong in a `terraform workspace` more often than a repo.
+recommend = ["dev", "stage", "prod"]
+forbid_duplicating = ["category", "type"]
+
+[token.type]
+values = ["tfmod", "tfstate", "k8s", "docs"]
+strict = true
+
+[constraints]
+min_tokens = 5
+max_tokens = 6
+max_length = 50
+
+[exceptions]
+allow = []

@@ -1,0 +1,48 @@
+# nexus-style.toml — faithful to the structural pattern.
+#
+# Pattern: {prefix}-{category}-{domain}-{service}[-{submodule}]-{type}
+# 5..6 tokens. Domain codes are short; services live in a controlled
+# dictionary. The 6th-token submodule slot is exceptional, used only
+# when one service has multiple repos of the same type.
+
+[locale]
+language = "en"
+
+[token.prefix]
+values = ["acme"]
+strict = true
+
+[token.category]
+values = ["app", "infra", "lib", "ops", "doc", "poc"]
+strict = true
+
+[token.domain]
+values = ["core", "data", "platform", "shared"]
+strict = true
+
+[token.service]
+# Add new services via PR to this list — that's the workflow.
+values = ["billing", "identity", "pricing"]
+strict = true
+
+[token.submodule]
+recommend = ["admin", "partner", "consumer", "merchant", "b2b", "b2c"]
+forbid_duplicating = ["category", "type"]
+
+[token.type]
+values = [
+  "agw", "api", "worker", "web", "webview",
+  "ios", "android", "win", "did",
+  "sdk", "schema",
+  "tfstate", "tfmod", "k8s",
+  "docs",
+]
+strict = true
+
+[constraints]
+min_tokens = 5
+max_tokens = 6
+max_length = 50
+
+[exceptions]
+allow = []

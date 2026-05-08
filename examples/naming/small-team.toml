@@ -1,0 +1,41 @@
+# small-team.toml — three categories, one shared domain, no submodules.
+#
+# Good for teams under ~10 engineers with a single AWS account or a
+# single cluster. The submodule slot is technically declared, but
+# max_tokens = 5 prevents it from being used.
+
+[locale]
+language = "en"
+
+[token.prefix]
+values = ["acme"]
+strict = true
+
+[token.category]
+values = ["app", "infra", "ops"]
+strict = true
+
+[token.domain]
+values = ["shared"]
+strict = true
+
+[token.service]
+values = ["billing", "identity", "pricing"]
+strict = true
+
+[token.submodule]
+# Empty recommended set + max_tokens=5 below = submodules disabled.
+recommend = []
+forbid_duplicating = ["category", "type"]
+
+[token.type]
+values = ["api", "worker", "web", "sdk", "tfmod", "k8s", "docs"]
+strict = true
+
+[constraints]
+min_tokens = 5
+max_tokens = 5
+max_length = 40
+
+[exceptions]
+allow = []

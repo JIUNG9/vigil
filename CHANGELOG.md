@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.7.0] — 2026-05-08
+
+### Added
+- **Configurable naming convention** — `.teammate-naming.toml` declares per-team vocabularies for prefix, category, domain, service, submodule, type. Pattern: `{prefix}-{category}-{domain}-{service}[-{submodule}]-{type}` with kebab-case charset, type-token-last, no-duplicate-tokens, length cap.
+- `teammate naming check <name>` — validate one name (or stdin batch with `-`). Exit 0 / 1 / 2.
+- `teammate naming list` — print effective convention.
+- `teammate naming init [--template ...] [--force]` — write a starter config. Templates: `nexus-style`, `small-team`, `monorepo-only`, `strict-iac`.
+- `teammate validate --include-naming` — integrates naming check into the existing shape report. Off by default; opt-in via flag or `[validate] include_naming = true` in main config.
+- Korean locale for validator messages — `[locale] language = "ko"` in the naming TOML. Faithful translations of the validator's failure-reason strings.
+- `examples/naming/{nexus-style,small-team,monorepo-only,strict-iac}.toml` — 4 starter configs.
+- `templates/team-brain-skeleton/.teammate-naming.toml` — bundled minimal default.
+- `docs/NAMING.md` — full spec, philosophy, migration guidance.
+- 30+ new tests; total now 300+.
+
+### Notes
+- The shipped convention is pattern-only — every vocabulary token is team-defined. The OSS repo ships no proprietary prefixes, domain codes, or service names.
+- Length-over-max is WARN, not FAIL — matches reference validator semantics.
+- Naming check is OFF by default in `validate` to avoid surprising existing v0.6 users; opt in per-team.
+
 ## [0.6.0] — 2026-05-08
 
 ### Added

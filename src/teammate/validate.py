@@ -19,6 +19,7 @@ catching the structural mistakes that turn a brain into a junk drawer:
   * non-canonical paths (`wiki/`, `notes/`) that should be moved
   * binary blobs sneaking into `docs/` / `knowledge/`
   * unparseable YAML frontmatter
+  * (opt-in) directory names that violate the team's naming convention
 
 Each check returns a record with a stable `name` so CI tooling can grep on it.
 """
@@ -27,11 +28,19 @@ from __future__ import annotations
 
 import json as _json
 import re
+import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import yaml
+
+from teammate.naming import (
+    Verdict,
+    find_naming_config,
+    load_naming_convention,
+    validate_name,
+)
 
 # Canonical sections — paths under brain root that the brain "knows about".
 # Anything outside this list under the root is potentially orphan/non-canonical.
@@ -493,6 +502,147 @@ def _check_frontmatter_parses(brain_root: Path) -> CheckResult:
     )
 
 
+# ---------- naming-convention check (opt-in) ----------
+
+# Directories under these prefixes are validated against the naming
+# convention when the check is enabled. We deliberately do NOT walk all
+# of brain_root — naming applies to logical sections, not bookkeeping
+# directories like `.git/` or `.teammate-cache/`.
+_NAMING_SCAN_PREFIXES: tuple[str, ...] = (
+    "docs",
+    "knowledge",
+    ".claude/skills",
+)
+
+
+def _read_validate_section(brain_root: Path) -> dict[str, Any]:
+    """Read ``[validate]`` from ``.teammate/config.toml``. Returns ``{}`` on miss."""
+    cfg_path = brain_root / ".teammate" / "config.toml"
+    if not cfg_path.is_file():
+        return {}
+    try:
+        with cfg_path.open("rb") as fh:
+            data = tomllib.load(fh)
+    except (OSError, tomllib.TOMLDecodeError):
+        return {}
+    section = data.get("validate") or {}
+    return section if isinstance(section, dict) else {}
+
+
+def _iter_naming_targets(brain_root: Path) -> list[Path]:
+    """Top-level directories under each naming-scan prefix."""
+    out: list[Path] = []
+    for prefix in _NAMING_SCAN_PREFIXES:
+        section_dir = brain_root / prefix
+        if not section_dir.is_dir():
+            continue
+        try:
+            for child in section_dir.iterdir():
+                if child.is_dir() and child.name not in _SKIP_DIR_PARTS:
+                    out.append(child)
+        except OSError:
+            continue
+    return out
+
+
+def _check_naming_convention(brain_root: Path) -> CheckResult:
+    """Validate directory names under canonical sections against the convention.
+
+    Skipped silently when ``.teammate-naming.toml`` is absent — naming is
+    opt-in. WARN on length / submodule warnings; FAIL on any hard rule
+    violation. The first FAIL drives the overall status; we still
+    enumerate up to 50 entries in ``details`` for human triage.
+    """
+    cfg_path = find_naming_config(brain_root)
+    if cfg_path is None:
+        return CheckResult(
+            name="naming_convention",
+            status=PASS,
+            summary="skipped — no .teammate-naming.toml",
+            details={"enabled": True, "config": None},
+        )
+    convention = load_naming_convention(cfg_path)
+    if convention is None:
+        return CheckResult(
+            name="naming_convention",
+            status=FAIL,
+            summary=f"could not parse {cfg_path.name}",
+            details={"config": str(cfg_path)},
+        )
+
+    targets = _iter_naming_targets(brain_root)
+    failures: list[dict[str, Any]] = []
+    warnings: list[dict[str, Any]] = []
+    ok_count = 0
+    for target in targets:
+        result = validate_name(target.name, convention)
+        rel = str(target.relative_to(brain_root))
+        record = {
+            "path": rel,
+            "name": target.name,
+            "verdict": result.verdict.value,
+            "reason": result.reason,
+        }
+        if result.verdict is Verdict.FAIL:
+            failures.append(record)
+        elif result.verdict is Verdict.WARN:
+            warnings.append(record)
+        else:
+            ok_count += 1
+
+    if not targets:
+        return CheckResult(
+            name="naming_convention",
+            status=PASS,
+            summary="no candidate directories — nothing to check",
+            details={"config": str(cfg_path), "scanned": 0},
+        )
+
+    if failures:
+        first = failures[0]
+        return CheckResult(
+            name="naming_convention",
+            status=FAIL,
+            summary=(
+                f"{len(failures)} naming violation(s); first: "
+                f"{first['path']} — {first['reason']}"
+            ),
+            details={
+                "config": str(cfg_path),
+                "scanned": len(targets),
+                "ok": ok_count,
+                "failures": failures[:50],
+                "warnings": warnings[:50],
+            },
+        )
+    if warnings:
+        first = warnings[0]
+        return CheckResult(
+            name="naming_convention",
+            status=WARN,
+            summary=(
+                f"{len(warnings)} naming warning(s); first: "
+                f"{first['path']} — {first['reason']}"
+            ),
+            details={
+                "config": str(cfg_path),
+                "scanned": len(targets),
+                "ok": ok_count,
+                "warnings": warnings[:50],
+            },
+        )
+    return CheckResult(
+        name="naming_convention",
+        status=PASS,
+        summary=f"{ok_count} director(y|ies) match the convention",
+        details={
+            "config": str(cfg_path),
+            "scanned": len(targets),
+            "ok": ok_count,
+        },
+    )
+
+
 # ---------- public API ----------
 
 
@@ -500,9 +650,17 @@ def validate(
     brain_root: Path,
     *,
     max_claude_md_kb: int = 4,
+    include_naming: bool | None = None,
 ) -> ValidationReport:
-    """Run every check; return a ValidationReport with the worst status."""
+    """Run every check; return a ValidationReport with the worst status.
+
+    The naming-convention check is OFF by default. Enable per-call via
+    ``include_naming=True``, or per-repo via ``[validate] include_naming
+    = true`` in ``.teammate/config.toml``. The CLI flag wins over the TOML.
+    """
     brain_root = Path(brain_root).resolve()
+    if include_naming is None:
+        include_naming = bool(_read_validate_section(brain_root).get("include_naming", False))
     checks = [
         _check_claude_md_present(brain_root),
         _check_claude_md_size(brain_root, max_claude_md_kb),
@@ -512,6 +670,8 @@ def validate(
         _check_binary_files_in_brain(brain_root),
         _check_frontmatter_parses(brain_root),
     ]
+    if include_naming:
+        checks.append(_check_naming_convention(brain_root))
     return ValidationReport(
         brain_root=brain_root,
         checks=checks,

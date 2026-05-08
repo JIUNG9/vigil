@@ -246,6 +246,19 @@ teammate validate --json    # machine-readable for CI
 Catches missing CLAUDE.md, dangling links, orphan files, binary blobs, and
 unparseable frontmatter. See [`docs/VALIDATE.md`](docs/VALIDATE.md).
 
+### Naming convention
+
+Configure your team's repo / service naming via `.teammate-naming.toml`:
+
+```bash
+teammate naming init --template nexus-style    # write starter config
+teammate naming check acme-infra-core-billing-tfmod
+teammate validate --include-naming             # check brain dirs against the rules
+```
+
+See [`docs/NAMING.md`](docs/NAMING.md) for the full spec, the structural
+pattern, and how to migrate from an unmanaged namespace.
+
 ### When something doesn't work
 
 ```bash

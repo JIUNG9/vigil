@@ -361,13 +361,24 @@ def adopt(
               help="Emit a machine-readable JSON report (no ANSI).")
 @click.option("--max-claude-md-kb", type=int, default=4, show_default=True,
               help="Soft size budget for CLAUDE.md (WARN if exceeded).")
-def validate(as_json: bool, max_claude_md_kb: int) -> None:
+@click.option("--include-naming", is_flag=True, default=False,
+              help="Run the naming-convention check against directory names "
+                   "under docs/, knowledge/, and .claude/skills/. Reads "
+                   ".teammate-naming.toml from the brain root.")
+def validate(as_json: bool, max_claude_md_kb: int, include_naming: bool) -> None:
     """Read-only structural check of the brain.
 
     Exit codes: 0 on all-PASS, 1 on any FAIL, 2 on only-WARN.
     """
     brain_root = Path(os.environ.get("TEAMMATE_BRAIN_ROOT") or Path.cwd())
-    report = run_validate(brain_root, max_claude_md_kb=max_claude_md_kb)
+    # The flag opts in. If absent, validate() falls back to the
+    # `[validate] include_naming` setting in .teammate/config.toml.
+    include_flag: bool | None = True if include_naming else None
+    report = run_validate(
+        brain_root,
+        max_claude_md_kb=max_claude_md_kb,
+        include_naming=include_flag,
+    )
     if as_json:
         click.echo(report.to_json())
     else:
@@ -735,6 +746,177 @@ def doctor(as_json: bool) -> None:
     else:
         _render_report(checks)
     sys.exit(_aggregate_exit_code(checks))
+
+
+# ---------- naming (v0.7) ----------
+
+
+_NAMING_FILENAME = ".teammate-naming.toml"
+
+
+@main.group()
+def naming() -> None:
+    """Validate repo / service names against the team's convention."""
+
+
+def _resolve_naming_config(brain_root: Path) -> Path | None:
+    """Locate ``.teammate-naming.toml`` for the active brain root."""
+    from teammate.naming import find_naming_config
+
+    return find_naming_config(brain_root)
+
+
+@naming.command("check")
+@click.argument("name", type=str)
+def naming_check(name: str) -> None:
+    """Validate a single repo name. Pass ``-`` to read names from stdin.
+
+    Exit codes match the reference shell validator:
+      0 — every input passed (or was an exempted exception)
+      1 — at least one input failed validation
+      2 — usage error
+    """
+    from teammate.naming import (
+        Verdict,
+        load_naming_convention,
+        validate_name,
+    )
+
+    brain_root = Path(os.environ.get("TEAMMATE_BRAIN_ROOT") or Path.cwd())
+    cfg_path = _resolve_naming_config(brain_root)
+    if cfg_path is None:
+        click.echo(
+            f"naming: no {_NAMING_FILENAME} found in {brain_root}. "
+            f"Run `teammate naming init` to write a starter.",
+            err=True,
+        )
+        sys.exit(2)
+    convention = load_naming_convention(cfg_path)
+    if convention is None:
+        click.echo(f"naming: could not parse {cfg_path}", err=True)
+        sys.exit(2)
+
+    def _emit(result) -> int:
+        verdict = result.verdict
+        if verdict is Verdict.OK:
+            click.echo(f"OK   {result.name}")
+            return 0
+        if verdict is Verdict.WARN:
+            click.echo(f"WARN {result.name}  — {result.reason}", err=True)
+            return 0
+        click.echo(f"FAIL {result.name}  — {result.reason}", err=True)
+        return 1
+
+    rc = 0
+    if name == "-":
+        for line in sys.stdin:
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            res = validate_name(stripped, convention)
+            rc |= _emit(res)
+        sys.exit(rc)
+    res = validate_name(name, convention)
+    sys.exit(_emit(res))
+
+
+@naming.command("list")
+def naming_list() -> None:
+    """Print the effective naming convention (config source, vocabularies)."""
+    from rich.console import Console
+    from rich.table import Table
+
+    from teammate.naming import load_naming_convention
+
+    brain_root = Path(os.environ.get("TEAMMATE_BRAIN_ROOT") or Path.cwd())
+    cfg_path = _resolve_naming_config(brain_root)
+    if cfg_path is None:
+        click.echo(
+            f"naming: no {_NAMING_FILENAME} found in {brain_root}.",
+            err=True,
+        )
+        sys.exit(1)
+    convention = load_naming_convention(cfg_path)
+    if convention is None:
+        click.echo(f"naming: could not parse {cfg_path}", err=True)
+        sys.exit(1)
+
+    console = Console()
+    console.print(f"[bold]naming convention[/bold]  source: {convention.source}")
+    console.print(f"  locale: {convention.language}")
+    console.print(
+        f"  tokens: {convention.min_tokens}..{convention.max_tokens}  "
+        f"max_length: {convention.max_length}"
+    )
+    table = Table(title=None, show_header=True, header_style="bold")
+    table.add_column("slot", style="cyan", no_wrap=True)
+    table.add_column("strict")
+    table.add_column("values")
+    for slot, spec in (
+        ("prefix", convention.prefix),
+        ("category", convention.category),
+        ("domain", convention.domain),
+        ("service", convention.service),
+        ("type", convention.type),
+    ):
+        values = ", ".join(spec.values) if spec.values else "(none)"
+        table.add_row(slot, str(spec.strict).lower(), values)
+    console.print(table)
+    if convention.submodule_recommend:
+        console.print(
+            "  submodule.recommend: "
+            f"{', '.join(convention.submodule_recommend)}"
+        )
+    if convention.submodule_forbid_duplicating:
+        console.print(
+            "  submodule.forbid_duplicating: "
+            f"{', '.join(convention.submodule_forbid_duplicating)}"
+        )
+    if convention.exceptions:
+        console.print(
+            f"  exceptions: {', '.join(convention.exceptions)}"
+        )
+    else:
+        console.print("  exceptions: (none)")
+
+
+@naming.command("init")
+@click.option(
+    "--template",
+    type=str,
+    default="nexus-style",
+    show_default=True,
+    help="Starter template. One of: nexus-style, small-team, monorepo-only, strict-iac.",
+)
+@click.option("--force", is_flag=True, help="Overwrite an existing config.")
+def naming_init(template: str, force: bool) -> None:
+    """Write a starter ``.teammate-naming.toml`` to the current directory."""
+    from teammate.naming import list_templates, write_starter
+
+    if template not in list_templates():
+        click.echo(
+            f"unknown template: {template!r}. "
+            f"Known: {', '.join(list_templates())}",
+            err=True,
+        )
+        sys.exit(2)
+    target = Path.cwd() / _NAMING_FILENAME
+    if target.exists() and not force:
+        click.echo(
+            f"{target} already exists. Use --force to overwrite.",
+            err=True,
+        )
+        sys.exit(1)
+    try:
+        written = write_starter(target, template, force=force)
+    except OSError as exc:
+        click.echo(f"failed to write {target}: {exc}", err=True)
+        sys.exit(1)
+    click.echo(f"Wrote starter naming config to {written}")
+    click.echo(
+        f"  template: {template}.  Edit the [token.*] sections, then "
+        f"run `teammate naming check <name>` to test."
+    )
 
 
 # ---------- agent ----------
