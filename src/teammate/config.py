@@ -51,12 +51,31 @@ class ProviderConfig:
 
 
 @dataclass(frozen=True)
+class ContradictionConfig:
+    """Settings for the contradiction detector. See contradiction.py."""
+
+    use_llm_judge: bool = False
+    score_floor: float = 0.5
+    max_llm_calls: int = 3
+
+
+@dataclass(frozen=True)
+class ConfidenceConfig:
+    """Settings for the four confidence guards. See confidence.py."""
+
+    score_threshold: float = 0.5
+    action_floors: dict[str, float] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
 class TeammateConfig:
     """Effective config after precedence resolution."""
 
     llm: ProviderConfig
     embedding: ProviderConfig
     config_source: str  # "default" | "repo" | "user" | "env" | "merged"
+    contradiction: ContradictionConfig = field(default_factory=ContradictionConfig)
+    confidence: ConfidenceConfig = field(default_factory=ConfidenceConfig)
 
 
 # ---------- defaults ----------
@@ -161,6 +180,44 @@ def _apply_env_overrides(
 # ---------- public API ----------
 
 
+def _contradiction_from_data(data: dict[str, Any]) -> ContradictionConfig:
+    section = data.get("contradiction") or {}
+    if not isinstance(section, dict):
+        return ContradictionConfig()
+    try:
+        score_floor = float(section.get("score_floor", 0.5))
+    except (TypeError, ValueError):
+        score_floor = 0.5
+    try:
+        max_llm_calls = int(section.get("max_llm_calls", 3))
+    except (TypeError, ValueError):
+        max_llm_calls = 3
+    return ContradictionConfig(
+        use_llm_judge=bool(section.get("use_llm_judge", False)),
+        score_floor=score_floor,
+        max_llm_calls=max_llm_calls,
+    )
+
+
+def _confidence_from_data(data: dict[str, Any]) -> ConfidenceConfig:
+    section = data.get("confidence") or {}
+    if not isinstance(section, dict):
+        return ConfidenceConfig()
+    try:
+        threshold = float(section.get("score_threshold", 0.5))
+    except (TypeError, ValueError):
+        threshold = 0.5
+    floors_raw = section.get("action_floors") or {}
+    floors: dict[str, float] = {}
+    if isinstance(floors_raw, dict):
+        for k, v in floors_raw.items():
+            try:
+                floors[str(k)] = float(v)
+            except (TypeError, ValueError):
+                continue
+    return ConfidenceConfig(score_threshold=threshold, action_floors=floors)
+
+
 def load_config(brain_root: Path) -> TeammateConfig:
     """Resolve effective config for the given brain root.
 
@@ -173,6 +230,8 @@ def load_config(brain_root: Path) -> TeammateConfig:
     llm = _default_llm()
     embedding = _default_embedding()
     source = "default"
+    contradiction = ContradictionConfig()
+    confidence = ConfidenceConfig()
 
     user_path = Path.home() / ".teammate" / "config.toml"
     repo_path = brain_root / ".teammate" / "config.toml"
@@ -180,18 +239,31 @@ def load_config(brain_root: Path) -> TeammateConfig:
     user_data = _read_toml(user_path)
     if user_data is not None:
         llm, embedding = _merge_toml(user_data, llm, embedding)
+        contradiction = _contradiction_from_data(user_data)
+        confidence = _confidence_from_data(user_data)
         source = "user"
 
     repo_data = _read_toml(repo_path)
     if repo_data is not None:
         llm, embedding = _merge_toml(repo_data, llm, embedding)
+        # Repo overrides user for the v0.6 sections too.
+        if "contradiction" in repo_data:
+            contradiction = _contradiction_from_data(repo_data)
+        if "confidence" in repo_data:
+            confidence = _confidence_from_data(repo_data)
         source = "repo" if source == "default" else "merged"
 
     llm, embedding, env_changed = _apply_env_overrides(llm, embedding)
     if env_changed:
         source = "env" if source == "default" else "merged"
 
-    return TeammateConfig(llm=llm, embedding=embedding, config_source=source)
+    return TeammateConfig(
+        llm=llm,
+        embedding=embedding,
+        config_source=source,
+        contradiction=contradiction,
+        confidence=confidence,
+    )
 
 
 # ---------- TOML writing (hand-rolled, four keys max per section) ----------
@@ -246,6 +318,8 @@ def write_starter_config(
 
 
 __all__ = [
+    "ConfidenceConfig",
+    "ContradictionConfig",
     "ProviderConfig",
     "TeammateConfig",
     "load_config",

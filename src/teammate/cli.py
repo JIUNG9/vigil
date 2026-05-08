@@ -128,7 +128,16 @@ def ask(query: tuple[str, ...], rebuild: bool, top_k: int) -> None:
     full_query = " ".join(query).strip()
     db_path = cache_dir / "vault.sqlite"
     for chunk in answer(
-        full_query, db_path, brain_root, embedder=embedder, llm=llm, k=top_k
+        full_query,
+        db_path,
+        brain_root,
+        embedder=embedder,
+        llm=llm,
+        k=top_k,
+        cache_dir=cache_dir,
+        confidence=cfg.confidence,
+        contradiction_cfg=cfg.contradiction,
+        action="ask",
     ):
         click.echo(chunk, nl=False)
     click.echo("")
@@ -894,6 +903,147 @@ def memory_export(
     out_path = write_handover(plan, target_dir)
     click.echo(f"memory-export: wrote handover to {out_path}")
     click.echo(f"  entries: {len(plan.entries)}  redacted: {plan.redact}")
+
+
+# ---------- adapter (v0.6) ----------
+
+
+@main.group()
+def adapter() -> None:
+    """Per-engineer translation between personal and team-brain layouts."""
+
+
+@adapter.command("show")
+def adapter_show() -> None:
+    """Print the effective adapter config. ``no adapter configured`` if absent."""
+    from teammate.adapter import ADAPTER_FILENAME, load_adapter
+
+    brain_root = Path(os.environ.get("TEAMMATE_BRAIN_ROOT") or Path.cwd())
+    adapter_obj = load_adapter(brain_root)
+    if adapter_obj is None:
+        home_path = Path.home() / ADAPTER_FILENAME
+        brain_path = brain_root / ADAPTER_FILENAME
+        click.echo("no adapter configured")
+        click.echo(f"  searched: {home_path}")
+        click.echo(f"  searched: {brain_path}")
+        click.echo("Run `teammate adapter init` to write a starter file.")
+        return
+    click.echo(f"# adapter source: {adapter_obj.source}")
+    click.echo("[paths]")
+    if not adapter_obj.paths:
+        click.echo("# (no path rules)")
+    else:
+        for personal, canonical in adapter_obj.paths.items():
+            click.echo(f'"{personal}" = "{canonical}"')
+    click.echo("")
+    click.echo("[claude_md]")
+    overrides = adapter_obj.personal_override_sections
+    if not overrides:
+        click.echo("personal_overrides_team = []")
+    else:
+        rendered = ", ".join(f'"{s}"' for s in overrides)
+        click.echo(f"personal_overrides_team = [{rendered}]")
+
+
+@adapter.command("init")
+@click.option("--scope", type=click.Choice(["home", "brain"]), default="home",
+              show_default=True,
+              help="Where to write the file. ``home`` = ~/.teammate-adapter.toml "
+                   "(per-engineer). ``brain`` = <brain-root>/.teammate-adapter.toml "
+                   "(team-shipped fallback).")
+@click.option("--force", is_flag=True, help="Overwrite if a file already exists.")
+def adapter_init(scope: str, force: bool) -> None:
+    """Write a starter ``.teammate-adapter.toml`` based on detected layouts."""
+    from teammate.adapter import ADAPTER_FILENAME, write_starter_adapter
+
+    brain_root = Path(os.environ.get("TEAMMATE_BRAIN_ROOT") or Path.cwd())
+    target = (
+        Path.home() / ADAPTER_FILENAME
+        if scope == "home"
+        else brain_root / ADAPTER_FILENAME
+    )
+    if target.exists() and not force:
+        click.echo(f"adapter file already exists at {target}. Use --force to overwrite.",
+                   err=True)
+        sys.exit(1)
+    written = write_starter_adapter(target)
+    click.echo(f"wrote starter adapter to {written}")
+    click.echo("Edit it to add your personal-to-canonical path rules. "
+               "See docs/ADAPTER.md.")
+
+
+@adapter.command("validate")
+def adapter_validate() -> None:
+    """Check that every ``[paths]`` rule still matches real files."""
+    from teammate.adapter import load_adapter, validate_adapter
+
+    brain_root = Path(os.environ.get("TEAMMATE_BRAIN_ROOT") or Path.cwd())
+    adapter_obj = load_adapter(brain_root)
+    if adapter_obj is None:
+        click.echo("no adapter configured — nothing to validate")
+        return
+    warnings = validate_adapter(adapter_obj)
+    if not warnings:
+        click.echo(f"adapter OK ({len(adapter_obj.paths)} path rule(s))")
+        return
+    click.echo(f"adapter has {len(warnings)} warning(s):", err=True)
+    for w in warnings:
+        click.echo(f"  - {w}", err=True)
+    sys.exit(2)
+
+
+# ---------- audit (v0.6) ----------
+
+
+@main.command()
+@click.option("--since", "since", default=None,
+              help="ISO date or datetime. Filter records with ts >= this.")
+@click.option("--query-grep", "query_grep", default=None,
+              help="Regex applied to the ``query`` field; only matching records are shown.")
+@click.option("--limit", type=int, default=20, show_default=True,
+              help="Maximum records to print. Most-recent last.")
+@click.option("--json", "as_json", is_flag=True,
+              help="Emit raw JSONL on stdout instead of the human view.")
+def audit(since: str | None, query_grep: str | None, limit: int, as_json: bool) -> None:
+    """Read recent retrieval audit records.
+
+    Audit lives at ``.teammate-cache/audit.jsonl`` and rotates weekly to
+    ``audit-YYYY-WW.jsonl``. Both files are read by default.
+    """
+    import datetime as _dt
+
+    from teammate.confidence import read_audit
+
+    brain_root = Path(os.environ.get("TEAMMATE_BRAIN_ROOT") or Path.cwd())
+    cache_dir = brain_root / ".teammate-cache"
+    if not cache_dir.exists():
+        click.echo("no audit log yet — run `teammate ask` first", err=True)
+        sys.exit(0)
+    since_dt: _dt.datetime | None = None
+    if since:
+        try:
+            since_dt = _dt.datetime.fromisoformat(since)
+        except ValueError:
+            click.echo(f"could not parse --since {since!r} as ISO date/datetime", err=True)
+            sys.exit(2)
+    records = read_audit(cache_dir, since=since_dt, query_grep=query_grep)
+    records = records[-limit:] if limit > 0 else records
+    if as_json:
+        for rec in records:
+            click.echo(_json.dumps(rec, sort_keys=True))
+        return
+    if not records:
+        click.echo("no records matched")
+        return
+    for rec in records:
+        flag = " *BELOW*" if rec.get("below_threshold") else ""
+        click.echo(
+            f"{rec.get('ts', '')}  {rec.get('action', 'ask'):<24}  "
+            f"max={rec.get('max_score', 0):.2f}  k={rec.get('k', 0)}  "
+            f"mode={rec.get('retrieval_mode', '?')}  "
+            f"contradictions={rec.get('contradictions', 0)}{flag}  "
+            f"{rec.get('query', '')[:80]}"
+        )
 
 
 if __name__ == "__main__":

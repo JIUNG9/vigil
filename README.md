@@ -273,6 +273,60 @@ or self-hosted) is what posts them to Slack / opens issues / drops PR
 comments. The agent itself never mutates the brain. See
 [`docs/AGENT.md`](docs/AGENT.md).
 
+### Personal-vs-team layout: the adapter
+
+Your personal markdown lives somewhere idiosyncratic — `~/notes/runbooks/`,
+`~/wiki/`, whatever. The team brain has a fixed canonical shape. The
+adapter is the per-engineer translation layer:
+
+```bash
+teammate adapter init             # writes ~/.teammate-adapter.toml
+teammate adapter show             # see the effective config
+teammate adapter validate         # check that path globs still match files
+```
+
+MVP scope: path translation (personal globs → canonical brain paths) and
+CLAUDE.md section precedence. Skill collisions and vocabulary aliases
+land in v0.7. See [`docs/ADAPTER.md`](docs/ADAPTER.md).
+
+### Confidence guards
+
+`teammate ask` won't bluff. Four guards, all configurable in
+`.teammate/config.toml`:
+
+- **Score threshold** — below 0.5, we say "I don't know" instead of
+  synthesising. Closest match is surfaced so you can decide whether to
+  reword or re-index.
+- **Citation guard** — every paragraph in the LLM's reply must cite a
+  file path in `[brackets]`. Uncited paragraphs are stripped.
+- **Audit JSONL** — every retrieval logs to
+  `.teammate-cache/audit.jsonl`. Rotates weekly.
+- **Per-action floor** — `ask` (0.5), agent routines (0.5–0.65),
+  reserved `execute` (0.85). Tunable.
+
+```bash
+teammate audit --since 2026-05-01            # read recent retrievals
+teammate audit --query-grep deploy           # regex filter
+```
+
+See [`docs/CONFIDENCE.md`](docs/CONFIDENCE.md).
+
+### When sources disagree: contradiction detection
+
+When two retrieved chunks contradict each other, `teammate ask` surfaces
+the conflict instead of blending them into a half-truth:
+
+```
+**Two sources disagree on this:**
+- `[runbooks/auth-pg.md]` says: "Auth runs on PostgreSQL 13."
+- `[runbooks/db-policy.md]` says: "All services migrated to PostgreSQL 16."
+Resolve manually before acting.
+```
+
+Phase 1 (heuristic) runs by default; Phase 2 (LLM judge) is opt-in via
+`[contradiction] use_llm_judge`. See
+[`docs/CONTRADICTION.md`](docs/CONTRADICTION.md).
+
 ### Memory import / export
 
 Personal `~/.claude/` memory accumulates facts the team could use —

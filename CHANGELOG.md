@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.6.0] — 2026-05-08
+
+### Added
+- **Adapter pattern (MVP)** — `.teammate-adapter.toml` per laptop; maps personal paths → canonical brain paths; handles CLAUDE.md section precedence when personal + team CLAUDE.md both exist. Skill collisions / vocabulary aliases deferred to v0.7 (the design needs real adopter patterns first).
+- `teammate adapter show / init / validate` — CLI for the adapter config.
+- **Contradiction detector** — top-k pair check (heuristic Phase 1 free; LLM Phase 2 only when flagged). Conflicts surface in `teammate ask` output as "two sources disagree on this:" prefix instead of synthesizing a half-truth.
+- **Four confidence guards** (the v0.4 promise, now realized):
+  - Score threshold — refuse synthesis below 0.5; respond with "I don't know" + closest match.
+  - Citation guard — every claim cites a file path in [brackets]; uncited claims stripped.
+  - Audit JSONL — `.teammate-cache/audit.jsonl`; one line per retrieval; weekly rotation.
+  - Per-action confidence floor — different floors for ask / weekly_digest / orphan_triage / pr_migration_plan.
+- `teammate audit` — read recent retrievals; `--query-grep` filter.
+- `docs/ADAPTER.md`, `docs/CONTRADICTION.md`, `docs/CONFIDENCE.md`.
+- `examples/adapter-personal-overlay.toml`, `examples/audit-log-sample.jsonl`.
+- 78 new tests; total now 268 passing.
+
+### Notes
+- Adapter MVP is path translation + CLAUDE.md section precedence ONLY. Per advisor: design without real adopters is a strawman; v0.7 expands once we have 2-3 real teams' patterns.
+- Contradiction Phase 2 (LLM) is opt-in via `[contradiction] use_llm_judge` to keep cost predictable. Phase 1 (heuristic) runs by default and catches the obvious cases.
+- Score threshold is meaningful only in embedding mode. Keyword-fallback scores are unbounded and density-normalised; the gate is disabled in that path and the audit line records `retrieval_mode: "keyword"`. Documented in `docs/CONFIDENCE.md`.
+- Audit log rotation is lazy — rename happens on the first append in a new ISO week. No daemon. A 3-week-quiet brain still gets exactly one rotation when it wakes up.
+- Citation guard buffers per-paragraph. Short answers without a closing `\n\n` are flushed at end-of-stream with the same check, so single-paragraph replies don't vanish silently.
+- Confidence guards realize the "At 3 AM, 'I don't know' is the most important output your AI can give you" thesis from the launch article. The team-brain product that wins is the one willing to say "I don't know."
+
 ## [0.5.0] — 2026-05-07
 
 ### Added

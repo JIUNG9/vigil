@@ -26,22 +26,29 @@ class RoutineConfig:
     """Per-invocation configuration for a routine.
 
     Attributes:
-        brain_root: read-only filesystem root the routine scans.
-        out_dir:    where the routine drops its report markdown. Created
-                    if missing. The runner is responsible for any further
-                    distribution (Slack, GitHub issues, PR comments).
-        dry_run:    default ``True``. The routine still writes its report
-                    file — that's how the runner picks it up — but takes
-                    no other side effects.
-        extra:      routine-specific arguments. Free-form so we don't
-                    grow the dataclass every time we add a routine. Each
-                    routine documents its own keys.
+        brain_root:   read-only filesystem root the routine scans.
+        out_dir:      where the routine drops its report markdown. Created
+                      if missing. The runner is responsible for any further
+                      distribution (Slack, GitHub issues, PR comments).
+        dry_run:      default ``True``. The routine still writes its report
+                      file — that's how the runner picks it up — but takes
+                      no other side effects.
+        extra:        routine-specific arguments. Free-form so we don't
+                      grow the dataclass every time we add a routine. Each
+                      routine documents its own keys.
+        action_floor: per-action confidence floor for retrieval calls made
+                      by the routine. ``None`` means "use the default for
+                      this routine's action name from
+                      ``confidence.DEFAULT_ACTION_FLOORS``." Routines that
+                      don't call retrieval ignore this field; v0.6 plumbs
+                      it through for v0.7+ routines that will.
     """
 
     brain_root: Path
     out_dir: Path
     dry_run: bool = True
     extra: dict[str, Any] = field(default_factory=dict)
+    action_floor: float | None = None
 
 
 @dataclass(frozen=True)

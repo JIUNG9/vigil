@@ -1,0 +1,46 @@
+# Example .teammate-adapter.toml — drop this in your home dir as
+# ~/.teammate-adapter.toml (or in the brain root for a team-shipped
+# fallback). See docs/ADAPTER.md for the full schema.
+#
+# This file shows the two responsibilities the v0.6 adapter MVP supports:
+# path translation and CLAUDE.md section precedence. Skill-collision
+# namespacing and vocabulary aliases are deferred to v0.7.
+
+# ---------- 1. Path translation ----------
+#
+# Map your personal-laptop locations to the canonical team-brain layout.
+# Each glob has exactly one ``*``. The ``{}`` in the value receives what
+# ``*`` matched, plus any literal suffix (so ``*.md`` + ``{}`` keeps the
+# .md extension automatically — no need to repeat it).
+#
+# Order matters: the first matching rule wins. Put more-specific globs
+# before more-general ones if you want them to take precedence.
+
+[paths]
+# Operations runbooks I keep under ~/notes/ but the team puts in docs/runbooks/.
+"~/notes/runbooks/*.md" = "docs/runbooks/{}"
+
+# A long-lived personal wiki that maps onto docs/wiki/.
+"~/wiki/*.md" = "docs/wiki/{}"
+
+# Architecture decision drafts I write at home before pushing to the team's docs/.
+"~/notes/adr/*.md" = "docs/architecture/{}"
+
+
+# ---------- 2. CLAUDE.md section precedence ----------
+#
+# When both the team's CLAUDE.md and your personal one exist, team wins
+# by default. List H2 section headers below where YOUR version should
+# override the team's. Sections you put in here that the team also has
+# are replaced. Sections in here that the team lacks are appended.
+# Sections NOT listed here are dropped from your personal version — the
+# team brain owns the canonical content.
+
+[claude_md]
+personal_overrides_team = [
+    # Editor / shell preferences live local; they're not team rules.
+    "Personal preferences",
+    "My editor config",
+    # Your private aliases for tooling that doesn't belong in the team brain.
+    "Local toolkit",
+]

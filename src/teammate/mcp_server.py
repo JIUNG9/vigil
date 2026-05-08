@@ -157,7 +157,7 @@ def _tool_brain_search(args: dict[str, Any]) -> dict[str, Any]:
                 "hint": str(exc),
             }
 
-    hits = retrieve(db, query, k=k, embedder=embedder)
+    hits, _mode = retrieve(db, query, k=k, embedder=embedder)
     return {
         "hits": [
             {

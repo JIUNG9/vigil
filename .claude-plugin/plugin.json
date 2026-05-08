@@ -1,6 +1,6 @@
 {
   "name": "teammate",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Your team's brain in your team's git repo. Local-LLM-queryable, Obsidian-friendly. The Teamspace alternative for teams who can't put context in someone else's cloud.",
   "homepage": "https://github.com/JIUNG9/teammate",
   "license": "MIT",
