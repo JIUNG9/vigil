@@ -193,28 +193,34 @@ class AuditRecord:
     retrieval_mode: str = "embedding"  # "embedding" | "keyword" | "none"
     contradictions: int = 0
     action: str = "ask"
+    # v0.9: total invalidation events that matched the retrieved chunks
+    # (regardless of severity). LOW / MEDIUM events don't surface as a
+    # banner but are recorded here so the audit trail is honest.
+    invalidations_matched: int = 0
 
     def to_jsonl(self) -> str:
         """Serialise to a single JSON line (no trailing newline)."""
-        return json.dumps(
-            {
-                "ts": self.ts,
-                "action": self.action,
-                "query": self.query,
-                "k": self.k,
-                "max_score": round(self.max_score, 4),
-                "min_score": round(self.min_score, 4),
-                "chunks_used": self.chunks_used,
-                "llm_provider": self.llm_provider,
-                "llm_model": self.llm_model,
-                "answer_length_chars": self.answer_length_chars,
-                "below_threshold": self.below_threshold,
-                "retrieval_mode": self.retrieval_mode,
-                "contradictions": self.contradictions,
-            },
-            ensure_ascii=False,
-            sort_keys=True,
-        )
+        payload = {
+            "ts": self.ts,
+            "action": self.action,
+            "query": self.query,
+            "k": self.k,
+            "max_score": round(self.max_score, 4),
+            "min_score": round(self.min_score, 4),
+            "chunks_used": self.chunks_used,
+            "llm_provider": self.llm_provider,
+            "llm_model": self.llm_model,
+            "answer_length_chars": self.answer_length_chars,
+            "below_threshold": self.below_threshold,
+            "retrieval_mode": self.retrieval_mode,
+            "contradictions": self.contradictions,
+        }
+        # Only emit the invalidations field when it carries information —
+        # keeps existing JSONL tests stable while still being honest about
+        # any matches.
+        if self.invalidations_matched:
+            payload["invalidations_matched"] = self.invalidations_matched
+        return json.dumps(payload, ensure_ascii=False, sort_keys=True)
 
 
 def audit_log_path(cache_dir: Path) -> Path:

@@ -45,6 +45,7 @@ from teammate.confidence import (
 from teammate.config import (
     ConfidenceConfig,
     ContradictionConfig,
+    InvalidationsConfig,
 )
 from teammate.contradiction import (
     detect_contradictions,
@@ -235,6 +236,7 @@ def answer(
     cache_dir: Path | None = None,
     confidence: ConfidenceConfig | None = None,
     contradiction_cfg: ContradictionConfig | None = None,
+    invalidations_cfg: InvalidationsConfig | None = None,
     action: str = "ask",
     floor: float | None = None,
     audit: bool = True,
@@ -254,6 +256,7 @@ def answer(
     """
     confidence = confidence or ConfidenceConfig()
     contradiction_cfg = contradiction_cfg or ContradictionConfig()
+    invalidations_cfg = invalidations_cfg or InvalidationsConfig()
     if floor is None:
         # Per-action floor (Guard 4): pulls from
         # ``[confidence.action_floors]`` first, falling back to
@@ -343,6 +346,35 @@ def answer(
     )
     prefix = render_contradiction_prefix(contradictions)
 
+    # Invalidation banner (v0.9). Look up brain-invalidations events that
+    # reference resources mentioned in the retrieved chunks. Only events
+    # at or above ``show_severity`` surface as a user-visible banner;
+    # everything else is logged to audit JSONL only — keeping the noise
+    # floor where the team set it.
+    invalidation_banner = ""
+    matched_invalidations = 0
+    if invalidations_cfg.enabled:
+        from datetime import timedelta as _td
+
+        from teammate.invalidations import (
+            find_invalidations_for_chunks,
+            render_banner,
+        )
+
+        inv_root = invalidations_cfg.repo_path
+        if inv_root is None:
+            sibling = repo_root.parent / "brain-invalidations"
+            inv_root = sibling if sibling.is_dir() else (
+                Path.home() / ".teammate" / "brain-invalidations"
+            )
+        if inv_root.exists():
+            window = _td(hours=invalidations_cfg.recency_window_hours)
+            matches = find_invalidations_for_chunks(hits, inv_root, since=window)
+            matched_invalidations = sum(len(v) for v in matches.values())
+            invalidation_banner = render_banner(
+                matches, show_severity=invalidations_cfg.show_severity
+            )
+
     # No LLM — fall back to the matched-files listing.
     if llm is None or not llm.is_up():
         body = (
@@ -370,13 +402,18 @@ def answer(
                         below_threshold=False,
                         retrieval_mode=mode,
                         contradictions=len(contradictions),
+                        invalidations_matched=matched_invalidations,
                     ),
                 )
+        if invalidation_banner:
+            yield invalidation_banner
         if prefix:
             yield prefix
         yield body
         return
 
+    if invalidation_banner:
+        yield invalidation_banner
     if prefix:
         yield prefix
 
@@ -418,6 +455,7 @@ def answer(
                         below_threshold=False,
                         retrieval_mode=mode,
                         contradictions=len(contradictions),
+                        invalidations_matched=matched_invalidations,
                     ),
                 )
 

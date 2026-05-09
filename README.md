@@ -224,6 +224,36 @@ git push
 # CI re-builds the index, your teammates get it on their next pull
 ```
 
+### Event-driven invalidation
+
+The brain is correct on Tuesday. Production changes on Wednesday. The
+brain is now wrong, and nobody knows. v0.9 closes the loop with a
+brain-invalidations event log: a sibling git repo of structured JSON
+events, fed by CloudTrail (or terraform hooks, or `teammate impact emit`),
+read by `teammate ask` at query time.
+
+```bash
+# Pre-apply hook — block if a recent HIGH event already touched these resources
+teammate impact preview \
+    --resource aws_vpc.shared \
+    --resource aws_iam_role.deploy-bot \
+    --severity high
+
+# Post-apply hook — write an event the rest of the team will see
+teammate impact emit \
+    --resource aws_vpc.shared --action detach --severity high
+
+# Read recent events
+teammate impact list --since 24h
+```
+
+`teammate ask` prepends a banner when retrieved chunks reference a
+recently-invalidated resource. Default: HIGH and above. Tunable via
+`[invalidations] show_severity` in `.teammate/config.toml`. See
+[`docs/IMPACT.md`](docs/IMPACT.md) for the full thesis, the no-daemon
+argument, and the CloudTrail Lambda module shipped under
+[`examples/infra/aws-cloudtrail-hook/`](examples/infra/aws-cloudtrail-hook).
+
 ### Mid-project adoption
 
 Already have markdown scattered across `docs/`, `wiki/`, `runbooks/`?

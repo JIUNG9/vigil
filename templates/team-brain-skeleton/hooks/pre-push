@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+#
+# teammate pre-push hook (v0.9). OPT-IN — installed via:
+#
+#     teammate init --install-pre-push
+#
+# (which copies this file to .git/hooks/pre-push and chmods +x).
+#
+# Behaviour:
+#   1. Run `teammate validate --include-naming` against the brain repo.
+#      Hard fail (exit 1) on any FAIL — keeps the brain shape clean.
+#   2. Read the staged-but-unpushed diff from stdin (the git pre-push
+#      contract is "<local ref> <local sha> <remote ref> <remote sha>"
+#      per line). For every locally-modified file, look for AWS resource
+#      patterns in the diff. If the resource has a HIGH-severity
+#      invalidation in the last 24 hours, warn (do NOT block).
+#
+# The hook is intentionally lenient on the second check — push velocity
+# matters and a false positive that *blocks* would erode trust. WARN
+# only; the engineer decides.
+
+set -euo pipefail
+
+if ! command -v teammate >/dev/null 2>&1; then
+  echo "pre-push: teammate CLI not on PATH — skipping" >&2
+  exit 0
+fi
+
+# 1. Validate brain shape.
+if ! teammate validate --include-naming >/dev/null 2>&1; then
+  echo "pre-push: teammate validate failed. Run 'teammate validate' for details." >&2
+  exit 1
+fi
+
+# 2. Diff-aware invalidation warning.
+# Read every line off stdin; collect the local SHAs we're about to push.
+local_shas=()
+while read -r local_ref local_sha remote_ref remote_sha; do
+  if [[ "$local_sha" != "0000000000000000000000000000000000000000" ]]; then
+    local_shas+=("$local_sha")
+  fi
+done
+
+if [[ ${#local_shas[@]} -eq 0 ]]; then
+  exit 0
+fi
+
+# Build the union diff for every commit being pushed; pull resource ids out.
+# Patterns mirror src/teammate/invalidations.py.
+diff_text="$(git log --format='' -p "${local_shas[@]}" 2>/dev/null || true)"
+if [[ -z "$diff_text" ]]; then
+  exit 0
+fi
+
+resources="$(printf '%s\n' "$diff_text" | grep -oE '(vpc|subnet|sg|i|nat|igw|rtb|eni|vol|ami|snap)-[0-9a-f]{8,17}|aws_[a-z][a-z0-9_]+\.[A-Za-z][A-Za-z0-9_-]+' | sort -u || true)"
+if [[ -z "$resources" ]]; then
+  exit 0
+fi
+
+# Run impact preview for the touched resources. Only warn if HIGH+.
+args=()
+while IFS= read -r r; do
+  [[ -n "$r" ]] && args+=(--resource "$r")
+done <<<"$resources"
+
+if ! teammate impact preview "${args[@]}" --severity high --recency 24 >/dev/null 2>&1; then
+  echo "pre-push: WARNING — your push touches resources with recent HIGH-severity infra changes." >&2
+  echo "pre-push: run 'teammate impact preview ${args[*]}' for the full report." >&2
+  echo "pre-push: not blocking the push — proceeding." >&2
+fi
+
+exit 0

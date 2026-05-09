@@ -1,0 +1,6 @@
+# Lambda runtime dependencies. boto3 is preinstalled in the AWS Lambda
+# Python runtime, so the only thing we'd add here is `requests` if we
+# wanted prettier HTTP. urllib from the stdlib does the job — keep the
+# zip lean.
+#
+# (intentionally empty)

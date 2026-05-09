@@ -94,10 +94,16 @@ def scaffold(target_dir: Path, team_name: str) -> None:
 @main.command()
 @click.option("--register-gbrain", is_flag=True,
               help="If gbrain is installed, register this brain as a source.")
-def init(register_gbrain: bool) -> None:
+@click.option("--install-pre-push", "install_pre_push", is_flag=True,
+              help="Copy the bundled v0.9 pre-push hook to .git/hooks/pre-push.")
+def init(register_gbrain: bool, install_pre_push: bool) -> None:
     """Set up teammate in this already-cloned team-brain repo."""
     brain_root = Path.cwd()
-    results = run_init(brain_root, register_gbrain=register_gbrain)
+    results = run_init(
+        brain_root,
+        register_gbrain=register_gbrain,
+        install_pre_push=install_pre_push,
+    )
     click.echo(render_summary(results))
     if any(r["status"] == "failed" for r in results.values()):
         sys.exit(1)
@@ -137,6 +143,7 @@ def ask(query: tuple[str, ...], rebuild: bool, top_k: int) -> None:
         cache_dir=cache_dir,
         confidence=cfg.confidence,
         contradiction_cfg=cfg.contradiction,
+        invalidations_cfg=cfg.invalidations,
         action="ask",
     ):
         click.echo(chunk, nl=False)
@@ -1344,6 +1351,256 @@ def _sync_subcommand(routine: str):
 
 for _r in _SYNC_ROUTINES:
     _sync_subcommand(_r)
+
+
+# ---------- impact (v0.9) ----------
+
+
+_DURATION_RE = re.compile(r"^(\d+)([smhd])$")
+
+
+def _parse_duration(value: str):
+    """Parse ``"1h"`` / ``"30m"`` / ``"7d"`` / ``"45s"`` into a ``timedelta``.
+
+    Used by ``teammate impact list --since``. We accept only one unit per
+    call; mixing (``"1h30m"``) is out of scope.
+    """
+    import datetime as _dt
+
+    m = _DURATION_RE.match(value.strip())
+    if not m:
+        raise click.BadParameter(
+            f"could not parse duration {value!r}. Use 30s / 5m / 2h / 7d.",
+            param_hint="--since",
+        )
+    n = int(m.group(1))
+    unit = m.group(2)
+    seconds = {"s": 1, "m": 60, "h": 3600, "d": 86400}[unit]
+    return _dt.timedelta(seconds=n * seconds)
+
+
+@main.group("impact")
+def impact_group() -> None:
+    """Pre / post terraform hooks — event-driven invalidation (v0.9).
+
+    Use ``preview`` before ``terraform apply`` to find brain pages that
+    reference the resources you're about to change. Use ``emit`` after
+    apply to write a structured invalidation event the rest of the team
+    will see.
+    """
+
+
+@impact_group.command("preview")
+@click.option("--resource", "resources", multiple=True, required=True,
+              help="Resource id (e.g. aws_vpc.shared, vpc-abc123). Repeat for multiple.")
+@click.option("--state-path", "state_path", type=click.Path(path_type=Path),
+              default=None,
+              help="Optional path to terraform.tfstate — recorded as event metadata.")
+@click.option("--invalidations-root", "invalidations_root",
+              type=click.Path(path_type=Path), default=None,
+              help="Override the on-disk path to the brain-invalidations repo.")
+@click.option("--severity", "severity",
+              type=click.Choice(["low", "medium", "high", "critical"]),
+              default="high", show_default=True,
+              help="Block threshold. HIGH or CRITICAL events block the apply.")
+@click.option("--recency", "recency_hours", type=int, default=24, show_default=True,
+              help="Look-back window in hours.")
+@click.option("--json", "as_json", is_flag=True,
+              help="Emit a machine-readable JSON report.")
+def impact_preview(
+    resources: tuple[str, ...],
+    state_path: Path | None,
+    invalidations_root: Path | None,
+    severity: str,
+    recency_hours: int,
+    as_json: bool,
+) -> None:
+    """Preview the brain impact of touching these resources.
+
+    Exit codes:
+      0 — no recent invalidations at or above ``--severity`` for the
+          touched resources. Safe to apply.
+      2 — at least one recent invalidation matches. Block.
+    """
+    import datetime as _dt
+
+    from teammate.impact import preview as run_preview
+
+    brain_root = Path(os.environ.get("TEAMMATE_BRAIN_ROOT") or Path.cwd())
+    report = run_preview(
+        brain_root,
+        list(resources),
+        invalidations_root=invalidations_root,
+        recency=_dt.timedelta(hours=recency_hours),
+        severity_floor=severity,
+    )
+
+    if as_json:
+        click.echo(_json.dumps(report.to_dict(), indent=2, sort_keys=True, default=str))
+        sys.exit(2 if report.block else 0)
+
+    from rich.console import Console
+    from rich.table import Table
+
+    console = Console()
+    console.print(
+        f"[bold]teammate impact preview[/bold]  resources={len(resources)}  "
+        f"window={recency_hours}h  block_at={severity.upper()}"
+    )
+    if state_path is not None:
+        console.print(f"  state-path: {state_path}")
+
+    if not report.pages:
+        console.print("[dim]no brain pages reference the touched resources.[/dim]")
+    else:
+        page_table = Table(title="affected brain pages", show_lines=False)
+        page_table.add_column("path", style="cyan")
+        page_table.add_column("resource")
+        page_table.add_column("matches", justify="right")
+        for p in report.pages:
+            page_table.add_row(p["path"], p["resource"], str(p["matches"]))
+        console.print(page_table)
+
+    if not report.recent_invalidations:
+        console.print("[dim]no recent invalidations within the window.[/dim]")
+    else:
+        ev_table = Table(title="recent invalidations", show_lines=False)
+        ev_table.add_column("timestamp", style="dim")
+        ev_table.add_column("severity")
+        ev_table.add_column("resource")
+        ev_table.add_column("action")
+        ev_table.add_column("source")
+        for ev in report.recent_invalidations:
+            ev_table.add_row(
+                ev.get("timestamp", ""),
+                ev.get("severity", "").upper(),
+                f"{ev.get('resource_type','')}.{ev.get('resource_id','')}".strip("."),
+                ev.get("action", ""),
+                ev.get("source", ""),
+            )
+        console.print(ev_table)
+
+    if report.block:
+        console.print(
+            f"\n[bold red]BLOCK[/bold red] — {len(report.recent_invalidations)} "
+            f"invalidation(s) at or above {severity.upper()} touch your resources."
+        )
+        sys.exit(2)
+    console.print("\n[bold green]OK[/bold green] — proceed with apply.")
+
+
+@impact_group.command("emit")
+@click.option("--resource", "resource", required=True,
+              help="Resource id (e.g. aws_vpc.shared, vpc-abc123).")
+@click.option("--action", "action", required=True,
+              help="What changed: detach / modify / delete / create / ...")
+@click.option("--severity", "severity",
+              type=click.Choice(["low", "medium", "high", "critical"]),
+              required=True)
+@click.option("--source", "source", default="manual", show_default=True)
+@click.option("--actor", "actor", default="",
+              help="Who emitted the event (typically $USER or a CI bot id).")
+@click.option("--state-path", "state_path", type=click.Path(path_type=Path),
+              default=None,
+              help="Optional path to terraform.tfstate — recorded as event metadata.")
+@click.option("--invalidations-root", "invalidations_root",
+              type=click.Path(path_type=Path), default=None)
+def impact_emit(
+    resource: str,
+    action: str,
+    severity: str,
+    source: str,
+    actor: str,
+    state_path: Path | None,
+    invalidations_root: Path | None,
+) -> None:
+    """Write an invalidation event to the brain-invalidations repo."""
+    from teammate.impact import emit as run_emit
+
+    brain_root = Path(os.environ.get("TEAMMATE_BRAIN_ROOT") or Path.cwd())
+    try:
+        path = run_emit(
+            brain_root,
+            resource,
+            action,
+            severity,
+            source=source,
+            terraform_state_path=state_path,
+            invalidations_root=invalidations_root,
+            actor=actor or os.environ.get("USER", ""),
+        )
+    except ValueError as exc:
+        click.echo(f"impact emit: {exc}", err=True)
+        sys.exit(2)
+    click.echo(f"wrote {path}")
+
+
+@impact_group.command("list")
+@click.option("--since", "since_str", default="24h", show_default=True,
+              help="Look-back window. Examples: 30s / 5m / 2h / 7d.")
+@click.option("--severity", "severity",
+              type=click.Choice(["low", "medium", "high", "critical"]),
+              default=None,
+              help="Minimum severity to display. Default: all.")
+@click.option("--invalidations-root", "invalidations_root",
+              type=click.Path(path_type=Path), default=None)
+@click.option("--json", "as_json", is_flag=True)
+def impact_list(
+    since_str: str,
+    severity: str | None,
+    invalidations_root: Path | None,
+    as_json: bool,
+) -> None:
+    """Print recent invalidations as a table."""
+    from teammate.impact import (
+        _resolve_invalidations_root,
+        read_recent_invalidations,
+    )
+
+    brain_root = Path(os.environ.get("TEAMMATE_BRAIN_ROOT") or Path.cwd())
+    root = _resolve_invalidations_root(brain_root, invalidations_root)
+    if not root.exists():
+        click.echo(
+            f"impact list: no invalidations repo at {root} — nothing to read.",
+            err=True,
+        )
+        sys.exit(0)
+    since = _parse_duration(since_str)
+    events = read_recent_invalidations(root, since=since, severity=severity)
+
+    if as_json:
+        click.echo(_json.dumps([ev.to_dict() for ev in events], indent=2, sort_keys=True))
+        return
+
+    from rich.console import Console
+    from rich.table import Table
+
+    console = Console()
+    console.print(
+        f"[bold]teammate impact list[/bold]  window={since_str}  "
+        f"severity>= {severity or 'any'}  root={root}"
+    )
+    if not events:
+        console.print("[dim]no events in window.[/dim]")
+        return
+    table = Table(show_lines=False)
+    table.add_column("timestamp", style="dim")
+    table.add_column("severity")
+    table.add_column("resource")
+    table.add_column("action")
+    table.add_column("source")
+    table.add_column("actor", style="dim")
+    for ev in events:
+        full = f"{ev.resource_type}.{ev.resource_id}".strip(".")
+        table.add_row(
+            ev.timestamp,
+            ev.severity.upper(),
+            full,
+            ev.action,
+            ev.source,
+            ev.actor or "-",
+        )
+    console.print(table)
 
 
 if __name__ == "__main__":

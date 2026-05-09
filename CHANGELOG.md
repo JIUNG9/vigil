@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.9.0] — 2026-05-09
+
+### Added
+- **Event-driven invalidation** — the missing freshness layer for brain-vs-infra drift:
+  - `teammate impact preview` — pre-terraform hook; finds brain pages that reference touched resources, blocks if recent HIGH-severity events exist.
+  - `teammate impact emit` — post-terraform hook; writes a structured invalidation event to the brain-invalidations repo.
+  - `teammate impact list` — read recent events as a table.
+- `src/teammate/invalidations.py` — runtime integration: `teammate ask` now prepends a banner when retrieved chunks reference recently invalidated resources. Default: only HIGH severity surfaces (configurable).
+- `examples/infra/aws-cloudtrail-hook/` — Lambda + EventBridge module that catches CloudTrail events (VPC/IAM/RDS/SG mutations) and commits invalidation events to the brain-invalidations repo. Includes the Lambda Python source and tests.
+- `templates/team-brain-skeleton/hooks/pre-push` — optional client-side gate. Installed via `teammate init --install-pre-push`.
+- `[invalidations]` config section.
+- `docs/IMPACT.md` — full thesis + integration guide.
+- 49+ new tests; total now 435+.
+
+### Notes
+- The invalidations repo is the SINGLE SOURCE OF TRUTH for events. Slack / email / PagerDuty notifications are derived artifacts triggered by GitHub Actions on the repo, not the source of truth.
+- `teammate ask` lazy-fetches the invalidations repo at command time (not a daemon). Cached 60s within a session.
+- The agent never auto-mutates the brain in response to invalidation events. If the team wants auto-PR-drafting for HIGH severity, that's v0.10's `auto_pr_drafter` routine.
+- Resource extraction is regex-based heuristic — covers the common AWS resource patterns. Custom patterns can be added via `[invalidations.extra_patterns]` (future v0.10).
+- The CloudTrail Terraform variable was named `event_filter_arn` in the spec but the values are CloudTrail event NAMES, not ARNs — renamed to `event_name_patterns` in this release.
+- The bundled pre-push hook lives at `templates/team-brain-skeleton/hooks/pre-push`. `teammate init --install-pre-push` copies it into `.git/hooks/`. Storing it in the source tree under `.git/` would have been clobbered by `git init`.
+
 ## [0.8.0] — 2026-05-09
 
 ### Added

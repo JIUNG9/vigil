@@ -112,6 +112,57 @@ def test_write_starter_config_respects_uncommon_options(tmp_path: Path):
     assert data["llm"]["timeout_s"] == 60
 
 
+# ---------- v0.9 InvalidationsConfig ----------
+
+
+def test_invalidations_defaults(tmp_path: Path):
+    from teammate.config import load_config
+
+    cfg = load_config(tmp_path)
+    assert cfg.invalidations.enabled is True
+    assert cfg.invalidations.show_severity == "high"
+    assert cfg.invalidations.recency_window_hours == 168
+    assert cfg.invalidations.repo_path is None
+
+
+def test_invalidations_section_loaded_from_repo_config(tmp_path: Path):
+    from teammate.config import load_config
+
+    repo_cfg = tmp_path / ".teammate" / "config.toml"
+    repo_cfg.parent.mkdir(parents=True)
+    repo_cfg.write_text(
+        '[llm]\nprovider = "ollama"\nmodel = "llama3.2:3b"\n'
+        '[embedding]\nprovider = "ollama"\nmodel = "nomic-embed-text"\n'
+        '[invalidations]\n'
+        'enabled = false\n'
+        'show_severity = "medium"\n'
+        'recency_window_hours = 48\n'
+        'repo_path = "/tmp/brain-invalidations"\n',
+        encoding="utf-8",
+    )
+    cfg = load_config(tmp_path)
+    assert cfg.invalidations.enabled is False
+    assert cfg.invalidations.show_severity == "medium"
+    assert cfg.invalidations.recency_window_hours == 48
+    assert cfg.invalidations.repo_path == Path("/tmp/brain-invalidations")
+
+
+def test_invalidations_clamps_unknown_severity(tmp_path: Path):
+    from teammate.config import load_config
+
+    repo_cfg = tmp_path / ".teammate" / "config.toml"
+    repo_cfg.parent.mkdir(parents=True)
+    repo_cfg.write_text(
+        '[llm]\nprovider = "ollama"\nmodel = "x"\n'
+        '[embedding]\nprovider = "ollama"\nmodel = "y"\n'
+        '[invalidations]\nshow_severity = "severe"\n',
+        encoding="utf-8",
+    )
+    cfg = load_config(tmp_path)
+    # Unknown values must fall back to "high" — never silently raise.
+    assert cfg.invalidations.show_severity == "high"
+
+
 def test_user_config_loaded_when_no_repo_config(tmp_path: Path, monkeypatch):
     """A user-scoped config under HOME should override defaults."""
     from teammate.config import load_config

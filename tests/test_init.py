@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from teammate.brain import Brain
-from teammate.init import scaffold, step_brain
+from teammate.init import scaffold, step_brain, step_pre_push
 
 
 def test_scaffold_creates_template_files(tmp_path: Path):
@@ -53,3 +53,23 @@ def test_brain_after_scaffold_is_queryable(tmp_path: Path):
     assert brain.exists()
     stats = brain.stats()
     assert stats["total"] >= 5
+
+
+# ---------- v0.9 pre-push hook ----------
+
+
+def test_step_pre_push_skips_when_no_git(tmp_path: Path):
+    """No .git/ → skip (don't fail). Engineers run init before git init sometimes."""
+    result = step_pre_push(tmp_path)
+    assert result["status"] == "skipped"
+
+
+def test_step_pre_push_installs_into_git_hooks(tmp_path: Path):
+    target = tmp_path / "new-brain"
+    scaffold(target, team_name="acme")
+    (target / ".git" / "hooks").mkdir(parents=True)
+    result = step_pre_push(target)
+    assert result["status"] == "ok"
+    hook_path = target / ".git" / "hooks" / "pre-push"
+    assert hook_path.exists()
+    assert hook_path.stat().st_mode & 0o111  # executable bit set

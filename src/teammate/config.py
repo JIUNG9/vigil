@@ -68,6 +68,21 @@ class ConfidenceConfig:
 
 
 @dataclass(frozen=True)
+class InvalidationsConfig:
+    """Settings for the v0.9 event-driven invalidation layer.
+
+    The defaults are deliberately conservative: enabled, but only HIGH
+    and above severity surface as a banner. Anything below stays in the
+    audit log so noise doesn't drown the actual signal.
+    """
+
+    enabled: bool = True
+    repo_path: Path | None = None
+    show_severity: str = "high"
+    recency_window_hours: int = 168  # one week
+
+
+@dataclass(frozen=True)
 class TeammateConfig:
     """Effective config after precedence resolution."""
 
@@ -76,6 +91,7 @@ class TeammateConfig:
     config_source: str  # "default" | "repo" | "user" | "env" | "merged"
     contradiction: ContradictionConfig = field(default_factory=ContradictionConfig)
     confidence: ConfidenceConfig = field(default_factory=ConfidenceConfig)
+    invalidations: InvalidationsConfig = field(default_factory=InvalidationsConfig)
 
 
 # ---------- defaults ----------
@@ -199,6 +215,28 @@ def _contradiction_from_data(data: dict[str, Any]) -> ContradictionConfig:
     )
 
 
+def _invalidations_from_data(data: dict[str, Any]) -> InvalidationsConfig:
+    section = data.get("invalidations") or {}
+    if not isinstance(section, dict):
+        return InvalidationsConfig()
+    enabled = bool(section.get("enabled", True))
+    raw_repo = section.get("repo_path") or None
+    repo_path: Path | None = Path(str(raw_repo)).expanduser() if raw_repo else None
+    show_sev = str(section.get("show_severity", "high")).lower()
+    if show_sev not in {"low", "medium", "high", "critical"}:
+        show_sev = "high"
+    try:
+        window = int(section.get("recency_window_hours", 168))
+    except (TypeError, ValueError):
+        window = 168
+    return InvalidationsConfig(
+        enabled=enabled,
+        repo_path=repo_path,
+        show_severity=show_sev,
+        recency_window_hours=window,
+    )
+
+
 def _confidence_from_data(data: dict[str, Any]) -> ConfidenceConfig:
     section = data.get("confidence") or {}
     if not isinstance(section, dict):
@@ -232,6 +270,7 @@ def load_config(brain_root: Path) -> TeammateConfig:
     source = "default"
     contradiction = ContradictionConfig()
     confidence = ConfidenceConfig()
+    invalidations = InvalidationsConfig()
 
     user_path = Path.home() / ".teammate" / "config.toml"
     repo_path = brain_root / ".teammate" / "config.toml"
@@ -241,6 +280,7 @@ def load_config(brain_root: Path) -> TeammateConfig:
         llm, embedding = _merge_toml(user_data, llm, embedding)
         contradiction = _contradiction_from_data(user_data)
         confidence = _confidence_from_data(user_data)
+        invalidations = _invalidations_from_data(user_data)
         source = "user"
 
     repo_data = _read_toml(repo_path)
@@ -251,6 +291,8 @@ def load_config(brain_root: Path) -> TeammateConfig:
             contradiction = _contradiction_from_data(repo_data)
         if "confidence" in repo_data:
             confidence = _confidence_from_data(repo_data)
+        if "invalidations" in repo_data:
+            invalidations = _invalidations_from_data(repo_data)
         source = "repo" if source == "default" else "merged"
 
     llm, embedding, env_changed = _apply_env_overrides(llm, embedding)
@@ -263,6 +305,7 @@ def load_config(brain_root: Path) -> TeammateConfig:
         config_source=source,
         contradiction=contradiction,
         confidence=confidence,
+        invalidations=invalidations,
     )
 
 
@@ -320,6 +363,7 @@ def write_starter_config(
 __all__ = [
     "ConfidenceConfig",
     "ContradictionConfig",
+    "InvalidationsConfig",
     "ProviderConfig",
     "TeammateConfig",
     "load_config",

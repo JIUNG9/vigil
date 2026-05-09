@@ -273,7 +273,38 @@ def step_index(brain_root: Path) -> dict[str, str]:
     )
 
 
-def run(brain_root: Path, *, register_gbrain: bool = False) -> dict[str, dict[str, str]]:
+def step_pre_push(brain_root: Path) -> dict[str, str]:
+    """Install the v0.9 pre-push hook into ``<brain_root>/.git/hooks/``.
+
+    Opt-in. Skips silently if the brain root has no ``.git/`` directory
+    (e.g. running inside a worktree without the dotfile, or against a
+    bare scaffold the user hasn't ``git init``-ed yet).
+    """
+    git_dir = brain_root / ".git"
+    if not git_dir.is_dir():
+        return _skip(
+            f"no .git dir at {git_dir} — run `git init` first, then "
+            f"`teammate init --install-pre-push` again."
+        )
+    template = _bundled_template_dir() / "hooks" / "pre-push"
+    if not template.is_file():
+        return _skip(f"bundled hook missing at {template}")
+    target = git_dir / "hooks" / "pre-push"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        target.write_text(template.read_text(encoding="utf-8"), encoding="utf-8")
+        target.chmod(0o755)
+    except OSError as exc:
+        return _fail(f"could not install pre-push hook: {exc}")
+    return _ok(f"installed pre-push hook at {target}")
+
+
+def run(
+    brain_root: Path,
+    *,
+    register_gbrain: bool = False,
+    install_pre_push: bool = False,
+) -> dict[str, dict[str, str]]:
     """Run the full per-laptop init flow inside an already-cloned team-brain."""
     brain_root = brain_root.resolve()
     results: dict[str, dict[str, str]] = {}
@@ -286,6 +317,8 @@ def run(brain_root: Path, *, register_gbrain: bool = False) -> dict[str, dict[st
     results["config"] = step_config(brain_root)
     results["gbrain"] = step_gbrain(brain_root, register=register_gbrain)
     results["index"] = step_index(brain_root)
+    if install_pre_push:
+        results["pre_push"] = step_pre_push(brain_root)
     return results
 
 
@@ -307,4 +340,5 @@ __all__ = [
     "step_gbrain",
     "step_index",
     "step_ollama",
+    "step_pre_push",
 ]
