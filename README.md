@@ -430,6 +430,41 @@ and pending PR-staged drafts into one screen. See
 architecture, the k8s-controller analogy, and the trust split between
 the agent and the runner.
 
+### Real-time event listener (Slack Socket Mode)
+
+v0.11 adds a persistent WebSocket that replaces polling for Slack events.
+The listener runs as a single-replica Deployment and triggers K8s Jobs
+**in real time** — no public URL, no ALB, no ingress rule needed.
+
+```
+Slack workspace ──WebSocket (outbound)──▶ teammate-event-listener
+                                                   │
+                      ┌────────────────────────────┼─────────────────┐
+                      ▼                            ▼                 ▼
+               K8s Job: weekly_digest   K8s Job: brain_pulse   K8s Job: jira_sync
+```
+
+```bash
+# Install with Socket Mode dependencies
+pip install 'claude-teammate[listen]'
+
+# Set tokens once (see docs/SOCKET-MODE.md for Slack app setup)
+export SLACK_APP_TOKEN="xapp-..."
+export SLACK_BOT_TOKEN="xoxb-..."
+export TEAMMATE_SLACK_CHANNELS="ops-alerts"
+
+# Start listening (Ctrl-C to stop)
+teammate agent listen --no-fail-on-disconnect
+
+# Say "brain pulse" in #ops-alerts → Job created instantly
+```
+
+Trigger keywords out of the box: `weekly digest`, `orphan triage`, `confluence sync`,
+`jira sync`, `pr draft`, `brain pulse` / `reindex`. Edit `socket_listener.KEYWORD_ROUTES`
+to add your own.
+
+For K8s deployment: `examples/k8s/event-listener/`. For full setup: [`docs/SOCKET-MODE.md`](docs/SOCKET-MODE.md).
+
 ### Memory import / export
 
 Personal `~/.claude/` memory accumulates facts the team could use —
@@ -516,6 +551,15 @@ even when the heuristic is confident an entry is team-relevant. See
 | `TEAMMATE_BRAIN_ROOT` | `cwd` | Override the brain root (useful when running the MCP server from a fixed path). |
 | `TEAMMATE_FORCE_INIT` | `0` | Allow `init` to overwrite an existing pre-push hook. |
 | `TEAMMATE_OVERRIDE` | `0` | Bypass guardrail hooks for one push (use sparingly). |
+| `SLACK_APP_TOKEN` | — | `xapp-…` App-Level Token for Socket Mode. Required for `teammate agent listen`. |
+| `SLACK_BOT_TOKEN` | — | `xoxb-…` Bot Token. Required for `teammate agent listen`. |
+| `TEAMMATE_SLACK_CHANNELS` | all | Comma-separated channel names to watch. Empty = watch all channels. |
+| `TEAMMATE_NAMESPACE` | `teammate-agent` | K8s namespace for Job creation (event-listener Deployment). |
+| `ATLASSIAN_API_TOKEN` | — | Enables Jira/Confluence polling in the event listener. |
+| `JIRA_BASE_URL` | — | e.g. `https://your-org.atlassian.net` |
+| `CONFLUENCE_BASE_URL` | — | e.g. `https://your-org.atlassian.net/wiki` |
+| `JIRA_WATCHER_JQL` | `labels = "architecture-decision" AND updated > -2m` | JQL filter for `jira_sync` triggers. |
+| `CONFLUENCE_WATCHER_SPACES` | — | Comma-separated Confluence space keys (e.g. `DOCS,ENG`). |
 
 ---
 
@@ -528,6 +572,7 @@ teammate/
     brain.py                 ← read-only Brain over a team-brain repo
     init.py                  ← scaffold + init orchestrators
     mcp_server.py            ← JSON-RPC MCP server
+    socket_listener.py       ← Slack Socket Mode WebSocket (teammate agent listen)
     rag/
       ollama.py              ← Ollama HTTP client
       index.py               ← sqlite-vec indexer

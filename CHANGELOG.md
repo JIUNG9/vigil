@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.11.0] — 2026-05-11
+
+### Added — Slack Socket Mode event listener (real-time)
+
+- `teammate agent listen` — persistent Slack Socket Mode WebSocket. Triggers K8s Jobs
+  for teammate routines in real time (<1s latency). No public URL needed — outbound only.
+- `src/teammate/socket_listener.py` — full Socket Mode implementation:
+  - Heartbeat thread (writes `/tmp/teammate-heartbeat` every 30s; liveness probe target)
+  - Jira/Confluence polling thread (configurable interval, fires `jira_sync`/`confluence_sync`)
+  - K8s Job creation from CronJob template with concurrency guard
+  - Fail-fast: exponential backoff, exits non-zero after 5 reconnect failures
+- `listen` optional extras: `slack-sdk>=3.27`, `kubernetes>=29.0`, `httpx>=0.27`
+- `docs/SOCKET-MODE.md` — full setup: Slack app config, local testing, K8s Deployment
+- `examples/k8s/event-listener/deployment.yaml` — production Deployment with probes
+- `teammate config init` now emits a `[listener]` section with Socket Mode defaults
+
+### Keyword routes (edit `socket_listener.KEYWORD_ROUTES` to customize)
+| Message | Routine |
+|---|---|
+| `weekly digest` | `weekly_digest` |
+| `orphan triage` / `orphan` | `orphan_triage` |
+| `confluence sync` | `confluence_sync` |
+| `jira sync` | `jira_sync` |
+| `pr draft` | `auto_pr_drafter` |
+| `brain pulse` / `reindex` | `brain_pulse` |
+
+```bash
+pip install 'claude-teammate[listen]'
+```
+
 ## [0.10.0] — 2026-05-09
 
 ### Added — scale automation (the agent-as-k8s-controller pattern)

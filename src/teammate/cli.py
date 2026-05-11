@@ -21,6 +21,9 @@ Subcommands:
                                  model availability, index, proxy/CA env.
   teammate agent run <name>   — run a colleague-agent routine locally
                                  (mainly invoked by `/schedule` runners).
+  teammate agent listen       — open a Slack Socket Mode WebSocket and trigger
+                                 K8s Jobs for matching messages in real time.
+                                 Requires `pip install claude-teammate[listen]`.
   teammate memory-import      — harvest team-relevant facts from
                                  ``~/.claude/`` memory into a review draft.
                                  Default for every entry is SKIP — opt in
@@ -984,6 +987,41 @@ def agent_run(
         click.echo(f"  artifact: {art}")
     if result.status == "fail":
         sys.exit(1)
+
+
+@agent.command("listen")
+@click.option("--poll-interval", "poll_interval", type=int, default=60, show_default=True,
+              help="Jira/Confluence polling interval in seconds. "
+                   "Slack events arrive in real time via WebSocket.")
+@click.option("--fail-on-disconnect/--no-fail-on-disconnect", default=True, show_default=True,
+              help="Exit non-zero when the socket cannot reconnect "
+                   "(pod restarts, which reconnects). Disable for local testing.")
+def agent_listen(poll_interval: int, fail_on_disconnect: bool) -> None:
+    """Open a Slack Socket Mode WebSocket and listen for real-time events.
+
+    Triggers K8s Jobs for matching teammate routines on Slack message, Jira
+    issue, or Confluence page changes. Designed to run as a single-replica
+    Kubernetes Deployment with a liveness probe on /tmp/teammate-heartbeat.
+
+    \b
+    Required env:
+      SLACK_APP_TOKEN   xapp-... (Socket Mode > App-Level Token, connections:write)
+      SLACK_BOT_TOKEN   xoxb-... (Bot Token)
+
+    \b
+    Optional env:
+      TEAMMATE_SLACK_CHANNELS   comma-separated channel names (default: all)
+      ATLASSIAN_API_TOKEN       enables Jira/Confluence polling
+      JIRA_BASE_URL             https://your-org.atlassian.net
+      CONFLUENCE_BASE_URL       https://your-org.atlassian.net/wiki
+      JIRA_WATCHER_JQL          JQL filter for jira_sync triggers
+      CONFLUENCE_WATCHER_SPACES comma-separated Confluence space keys
+
+    See docs/SOCKET-MODE.md for full setup.
+    """
+    from teammate.socket_listener import run as socket_run
+    exit_code = socket_run(poll_interval=poll_interval, fail_on_disconnect=fail_on_disconnect)
+    sys.exit(exit_code)
 
 
 # ---------- memory-import ----------

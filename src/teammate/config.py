@@ -355,6 +355,15 @@ def write_starter_config(
         f"{_render_section('llm', llm)}\n"
         "\n"
         f"{_render_section('embedding', embedding)}\n"
+        "\n"
+        "# Real-time event listener (Slack Socket Mode)\n"
+        "# Set SLACK_APP_TOKEN + SLACK_BOT_TOKEN env vars, then: teammate agent listen\n"
+        "# See docs/SOCKET-MODE.md\n"
+        "[listener]\n"
+        "# channels to watch — empty string means all channels\n"
+        'slack_channels = ""\n'
+        "# Jira/Confluence polling interval in seconds (Slack is real-time via WebSocket)\n"
+        "poll_interval = 60\n"
     )
     cfg_path.write_text(body, encoding="utf-8")
     return cfg_path

@@ -1,0 +1,168 @@
+# =============================================================================
+# Deployment: teammate-event-listener — real-time event bridge
+# =============================================================================
+# Maintains a live Slack Socket Mode WebSocket. On matching Slack message,
+# creates a K8s Job for the appropriate teammate routine.
+# Also polls Jira/Confluence on a configurable interval.
+#
+# Replicas=1 (single coordinator). strategy=Recreate avoids duplicate sockets.
+# Liveness probe: checks /tmp/teammate-heartbeat age < 90s.
+# Fail-fast: exits non-zero when socket cannot reconnect → pod restarts.
+#
+# Before deploying:
+#   1. Create a Kubernetes Secret named `teammate-credentials` with keys:
+#        slack-app-token   (xapp-...)
+#        slack-bot-token   (xoxb-...)
+#        github-pat        (repo read access)
+#        anthropic-api-key
+#        atlassian-token   (optional, enables Jira/Confluence polling)
+#   2. Update TEAMMATE_SLACK_CHANNELS to your channel name(s).
+#   3. Replace the image with your built image (see Dockerfile at repo root).
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: teammate-event-listener
+  namespace: teammate-agent
+  labels:
+    app: teammate-event-listener
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate   # only 1 socket connection at a time
+  selector:
+    matchLabels:
+      app: teammate-event-listener
+  template:
+    metadata:
+      labels:
+        app: teammate-event-listener
+    spec:
+      serviceAccountName: teammate-agent   # needs get/list/create on Jobs + CronJobs
+      initContainers:
+        - name: clone-brain
+          image: alpine/git:2.43.0
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -eu
+              git clone --depth 1 --branch "${BRAIN_REF}" \
+                "https://x-access-token:${GITHUB_PAT}@github.com/${BRAIN_REPO}.git" \
+                /etc/teammate/brain
+          env:
+            - name: BRAIN_REF
+              valueFrom:
+                configMapKeyRef:
+                  name: teammate-config
+                  key: brain_ref         # single key to pin all agents to a git ref
+            - name: BRAIN_REPO
+              value: "your-org/your-brain-repo"   # replace
+            - name: GITHUB_PAT
+              valueFrom:
+                secretKeyRef:
+                  name: teammate-credentials
+                  key: github-pat
+          volumeMounts:
+            - name: brain
+              mountPath: /etc/teammate/brain
+        - name: check-ollama
+          image: curlimages/curl:8.6.0
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              for i in 1 2 3; do
+                if curl -sf --max-time 5 "$OLLAMA_ENDPOINT/api/version" > /dev/null; then
+                  echo "Ollama reachable"; exit 0
+                fi
+                echo "Attempt $i failed — retrying in 10s"
+                sleep 10
+              done
+              echo "FATAL: Ollama unreachable after 3 attempts"; exit 1
+          env:
+            - name: OLLAMA_ENDPOINT
+              value: http://ollama.ollama.svc.cluster.local:11434
+      containers:
+        - name: teammate-listener
+          image: your-registry/teammate:latest   # replace with your image
+          imagePullPolicy: Always
+          command:
+            - teammate
+            - agent
+            - listen
+            - "--poll-interval"
+            - "60"
+            - "--fail-on-disconnect"
+          env:
+            - name: TEAMMATE_BRAIN_ROOT
+              value: /etc/teammate/brain
+            - name: TEAMMATE_LLM_HOST
+              value: http://ollama.ollama.svc.cluster.local:11434
+            - name: TEAMMATE_EMBEDDING_HOST
+              value: http://ollama.ollama.svc.cluster.local:11434
+            - name: TEAMMATE_SLACK_CHANNELS
+              value: "ops-alerts"   # replace with your channel
+            - name: JIRA_BASE_URL
+              value: "https://your-org.atlassian.net"   # replace or remove
+            - name: CONFLUENCE_BASE_URL
+              value: "https://your-org.atlassian.net/wiki"   # replace or remove
+            - name: CONFLUENCE_WATCHER_SPACES
+              value: "DOCS,ENG"   # replace or remove
+            - name: GITHUB_PAT
+              valueFrom:
+                secretKeyRef:
+                  name: teammate-credentials
+                  key: github-pat
+            - name: SLACK_APP_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: teammate-credentials
+                  key: slack-app-token
+            - name: SLACK_BOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: teammate-credentials
+                  key: slack-bot-token
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: teammate-credentials
+                  key: anthropic-api-key
+            - name: ATLASSIAN_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: teammate-credentials
+                  key: atlassian-token
+                  optional: true
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  test -f /tmp/teammate-heartbeat && \
+                  [ $(( $(date +%s) - $(stat -c %Y /tmp/teammate-heartbeat) )) -lt 90 ]
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 2
+          readinessProbe:
+            exec:
+              command: ["/bin/sh", "-c", "test -f /tmp/teammate-ready"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          volumeMounts:
+            - name: brain
+              mountPath: /etc/teammate/brain
+            - name: brain-cache
+              mountPath: /var/cache/teammate
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: brain
+          emptyDir: {}
+        - name: brain-cache
+          emptyDir: {}
