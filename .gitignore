@@ -53,3 +53,4 @@ compliance-vault/
 # Local secrets / env
 .envrc
 *.local
+teammate-local.sh
