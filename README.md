@@ -463,6 +463,20 @@ Trigger keywords out of the box: `weekly digest`, `orphan triage`, `confluence s
 `jira sync`, `pr draft`, `brain pulse` / `reindex`. Edit `socket_listener.KEYWORD_ROUTES`
 to add your own.
 
+**What is — and is not — real-time:**
+
+| Source | Latency | Mechanism |
+|---|---|---|
+| Slack messages | <1s | Socket Mode WebSocket |
+| Brain docs `git push` | ~30-60s | GitHub Actions webhook (separate workflow) |
+| Jira issue updates | ~60s | HTTP polling thread |
+| Confluence page edits | ~60s | HTTP polling thread |
+| Polling fallback | 15 min | `brain_pulse` CronJob |
+
+**Fail-fast on disconnect.** The listener writes `/tmp/teammate-heartbeat` every 30s.
+The K8s liveness probe restarts the pod if the heartbeat is more than 90s stale.
+After 5 reconnect failures, the process exits — Kubernetes restarts it.
+
 For K8s deployment: `examples/k8s/event-listener/`. For full setup: [`docs/SOCKET-MODE.md`](docs/SOCKET-MODE.md).
 
 ### Memory import / export
