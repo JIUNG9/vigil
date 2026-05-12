@@ -308,17 +308,16 @@ def _poll_jira_confluence(interval: int, stop: threading.Event, last_seen: dict)
             except Exception as exc:
                 log.warning("Jira poll error: %s", exc)
 
-        # Confluence: CQL space keys MUST be quoted — bare keys cause HTTP 400
+        # Confluence CQL quirks: space keys MUST be quoted; date format must be
+        # "YYYY/MM/DD HH:MM" (NOT ISO 8601 — Atlassian returns "Could not parse cql")
         if conf_url and confluence_spaces:
             try:
-                since = (datetime.now(UTC) - timedelta(minutes=2)).strftime(
-                    "%Y-%m-%dT%H:%M:%S.000Z"
-                )
-                spaces_cql = ", ".join(f'"{s}"' for s in confluence_spaces)
+                since = (datetime.now(UTC) - timedelta(minutes=2)).strftime("%Y/%m/%d %H:%M")
+                spaces_cql = ",".join(f'"{s}"' for s in confluence_spaces)
                 resp = httpx.get(
                     f"{conf_url}/rest/api/content/search",
                     params={
-                        "cql": f'space IN ({spaces_cql}) AND lastModified > "{since}"',
+                        "cql": f'space IN ({spaces_cql}) AND lastmodified > "{since}"',
                         "limit": 5,
                     },
                     auth=auth,
