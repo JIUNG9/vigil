@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.11.1] — 2026-05-12
+
+### Fixed
+- **Jira polling**: migrated to `/rest/api/3/search/jql` — old `/rest/api/3/search`
+  endpoint was deprecated by Atlassian in 2025 (returns `410 Gone`).
+- **Confluence polling**: CQL space keys are now wrapped in double quotes
+  (e.g. `space IN ("DOCS","ENG")`) — bare keys caused `HTTP 400 Could not parse cql`.
+- **Confluence polling**: bails out early with a clear log line if
+  `ATLASSIAN_EMAIL` is unset (previously caused silent 401 with empty Basic auth).
+- **Keyword routing**: `brain_pulse` (underscore) is now accepted in addition
+  to `brain pulse` (space) — common in Slack.
+
+### Added
+- **Job completion feedback to Slack** — after a Slack-triggered Job is created,
+  a watcher thread polls Job status and posts a thread reply with the outcome:
+  - ✅ `routine` completed in Ns
+  - ❌ `routine` failed in Ns — Job `<name>` (with last ~30 lines of pod logs)
+  - ⏳ still running after 600s (watcher gives up after the timeout)
+- **`_fetch_failed_pod_logs`** — helper that surfaces failed-pod log tail to Slack.
+- **`_create_k8s_job`** returns the job name (or `None`) instead of `bool`,
+  so the watcher can be wired up.
+- New required RBAC for the deployment that runs `teammate agent listen`:
+  - `pods: get, list`
+  - `pods/log: get`
+
 ## [0.11.0] — 2026-05-11
 
 ### Added — Slack Socket Mode event listener (real-time)

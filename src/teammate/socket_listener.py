@@ -2,21 +2,27 @@
 
 Opens a persistent WebSocket to Slack via Socket Mode (no public URL needed).
 On relevant events, creates Kubernetes Jobs for teammate routines.
+After a Job is created, a watcher thread reports completion back to Slack.
+
 Also polls Jira/Confluence on a configurable interval for changes.
 
 Required env vars:
-  SLACK_APP_TOKEN    xapp-... (App-Level Token, Socket Mode > connections:write)
-  SLACK_BOT_TOKEN    xoxb-... (Bot Token)
+  SLACK_APP_TOKEN          xapp-... (App-Level Token, Socket Mode > connections:write)
+  SLACK_BOT_TOKEN          xoxb-... (Bot Token)
 
 Optional env vars:
-  TEAMMATE_SLACK_CHANNELS    comma-separated channel names to watch (default: all)
-  TEAMMATE_NAMESPACE         K8s namespace for Job creation (default: teammate-agent)
-  ATLASSIAN_API_TOKEN        enables Jira/Confluence polling if set
-  ATLASSIAN_EMAIL            email for Atlassian Basic auth
-  JIRA_BASE_URL              e.g. https://your-org.atlassian.net
-  CONFLUENCE_BASE_URL        e.g. https://your-org.atlassian.net/wiki
-  JIRA_WATCHER_JQL           JQL for issues that should trigger jira_sync
-  CONFLUENCE_WATCHER_SPACES  comma-separated space keys to watch (e.g. "DOCS,ENG")
+  TEAMMATE_SLACK_CHANNELS   comma-separated channel names to watch (default: all)
+  TEAMMATE_NAMESPACE        K8s namespace for Job creation (default: teammate-agent)
+  ATLASSIAN_API_TOKEN       enables Jira/Confluence polling if set
+  ATLASSIAN_EMAIL           required for Atlassian Basic auth if polling enabled
+  JIRA_BASE_URL             e.g. https://your-org.atlassian.net
+  CONFLUENCE_BASE_URL       e.g. https://your-org.atlassian.net/wiki
+  JIRA_WATCHER_JQL          JQL for issues that should trigger jira_sync
+  CONFLUENCE_WATCHER_SPACES comma-separated space keys (e.g. "DOCS,ENG")
+
+Required Slack scopes for the bot token:
+  channels:history, channels:read, groups:history, groups:read,
+  chat:write, reactions:write (optional)
 
 Fail-fast behavior:
   - Writes /tmp/teammate-heartbeat every 30s while socket is alive
@@ -47,7 +53,8 @@ KEYWORD_ROUTES: dict[str, list[str]] = {
     "confluence_sync":  ["confluence sync"],
     "jira_sync":        ["jira sync"],
     "auto_pr_drafter":  ["pr draft"],
-    "brain_pulse":      ["brain pulse", "reindex"],
+    # Accept both spelling variants
+    "brain_pulse":      ["brain pulse", "brain_pulse", "reindex"],
 }
 
 
@@ -61,17 +68,18 @@ def _route_message(text: str) -> str | None:
 
 
 # ---------------------------------------------------------------------------
-# Kubernetes Job creation
+# Kubernetes Job creation + completion watcher
 # ---------------------------------------------------------------------------
 
-def _create_k8s_job(routine: str, source: str = "slack-socket") -> bool:
-    """Create a K8s Job from the CronJob template for the given routine."""
+def _create_k8s_job(routine: str, source: str = "slack-socket") -> str | None:
+    """Create a K8s Job from the CronJob template. Returns the job name on
+    success, None on failure (concurrency lock, RBAC, missing template, etc.)."""
     try:
         from kubernetes import client as k8s_client
         from kubernetes import config as k8s_config
     except ImportError:
         log.error("kubernetes package not installed — cannot create Job")
-        return False
+        return None
 
     try:
         k8s_config.load_incluster_config()
@@ -80,7 +88,7 @@ def _create_k8s_job(routine: str, source: str = "slack-socket") -> bool:
             k8s_config.load_kube_config()
         except Exception as exc:
             log.error("cannot load kubeconfig: %s", exc)
-            return False
+            return None
 
     namespace = os.environ.get("TEAMMATE_NAMESPACE", "teammate-agent")
     cronjob_name = f"teammate-{routine.replace('_', '-')}"
@@ -92,7 +100,7 @@ def _create_k8s_job(routine: str, source: str = "slack-socket") -> bool:
         cj = batch.read_namespaced_cron_job(cronjob_name, namespace)
     except Exception as exc:
         log.error("cannot read CronJob %s: %s", cronjob_name, exc)
-        return False
+        return None
 
     # Respect concurrencyPolicy: Forbid — skip if already running
     try:
@@ -103,7 +111,7 @@ def _create_k8s_job(routine: str, source: str = "slack-socket") -> bool:
         active = [j for j in jobs.items if j.status.active and j.status.active > 0]
         if active:
             log.info("routine %s already running — skipping", routine)
-            return False
+            return None
     except Exception as exc:
         log.warning("cannot check active jobs: %s", exc)
 
@@ -118,10 +126,115 @@ def _create_k8s_job(routine: str, source: str = "slack-socket") -> bool:
     try:
         batch.create_namespaced_job(namespace, job)
         log.info("created Job %s/%s (routine=%s source=%s)", namespace, job_name, routine, source)
-        return True
+        return job_name
     except Exception as exc:
         log.error("failed to create Job: %s", exc)
-        return False
+        return None
+
+
+def _watch_job_and_notify(
+    job_name: str,
+    routine: str,
+    web_client,
+    channel: str,
+    thread_ts: str,
+    timeout: int = 600,
+) -> None:
+    """Poll Job status until Complete or Failed; post a Slack reply with the outcome.
+
+    Runs on a daemon thread spawned by _handle(). Reports back to the same
+    channel as a thread reply on the trigger message.
+
+    Requires RBAC: batch/jobs:get and (for failure log tail) pods:get/list, pods/log:get.
+    """
+    try:
+        from kubernetes import client as k8s_client
+        from kubernetes import config as k8s_config
+    except ImportError:
+        return
+
+    try:
+        k8s_config.load_incluster_config()
+    except Exception:
+        try:
+            k8s_config.load_kube_config()
+        except Exception:
+            return
+
+    namespace = os.environ.get("TEAMMATE_NAMESPACE", "teammate-agent")
+    batch = k8s_client.BatchV1Api()
+
+    started = time.time()
+
+    while time.time() - started < timeout:
+        time.sleep(5)
+        try:
+            j = batch.read_namespaced_job(job_name, namespace)
+        except Exception as exc:
+            log.warning("watch %s: cannot read job: %s", job_name, exc)
+            return
+
+        s = j.status
+        if s.succeeded and s.succeeded > 0:
+            duration = int(time.time() - started)
+            with contextlib.suppress(Exception):
+                web_client.chat_postMessage(
+                    channel=channel,
+                    thread_ts=thread_ts,
+                    text=f":white_check_mark: `{routine}` completed in {duration}s — Job `{job_name}`",
+                )
+            log.info("Job %s succeeded after %ds", job_name, duration)
+            return
+        if s.failed and s.failed > 0:
+            duration = int(time.time() - started)
+            log_tail = _fetch_failed_pod_logs(job_name, namespace) or "(no logs available)"
+            with contextlib.suppress(Exception):
+                web_client.chat_postMessage(
+                    channel=channel,
+                    thread_ts=thread_ts,
+                    text=(
+                        f":x: `{routine}` failed after {duration}s — Job `{job_name}`\n"
+                        f"```\n{log_tail[:1500]}\n```"
+                    ),
+                )
+            log.warning("Job %s failed after %ds", job_name, duration)
+            return
+
+    # Timeout — report and stop watching
+    with contextlib.suppress(Exception):
+        web_client.chat_postMessage(
+            channel=channel,
+            thread_ts=thread_ts,
+            text=f":hourglass: `{routine}` still running after {timeout}s — no longer watching.",
+        )
+    log.warning("Job %s watch timed out after %ds", job_name, timeout)
+
+
+def _fetch_failed_pod_logs(job_name: str, namespace: str) -> str | None:
+    """Return last ~30 lines of the failed pod's logs, for surfacing in Slack."""
+    try:
+        from kubernetes import client as k8s_client
+    except ImportError:
+        return None
+    core = k8s_client.CoreV1Api()
+    try:
+        pods = core.list_namespaced_pod(namespace, label_selector=f"job-name={job_name}")
+        if not pods.items:
+            return None
+        pod_name = pods.items[0].metadata.name
+        # Try the conventional container name first; fall back to default
+        for container in ("teammate", None):
+            try:
+                kwargs = {"tail_lines": 30}
+                if container:
+                    kwargs["container"] = container
+                return core.read_namespaced_pod_log(pod_name, namespace, **kwargs)
+            except Exception:
+                continue
+        return None
+    except Exception as exc:
+        log.warning("cannot fetch logs for %s: %s", job_name, exc)
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -142,8 +255,12 @@ def _heartbeat_thread(stop: threading.Event) -> None:
 def _poll_jira_confluence(interval: int, stop: threading.Event, last_seen: dict) -> None:
     """Poll Jira/Confluence every `interval` seconds; create Jobs on new items."""
     atlassian_token = os.environ.get("ATLASSIAN_API_TOKEN", "")
+    atlassian_email = os.environ.get("ATLASSIAN_EMAIL", "")
     if not atlassian_token:
         log.info("ATLASSIAN_API_TOKEN not set — Jira/Confluence polling disabled")
+        return
+    if not atlassian_email:
+        log.warning("ATLASSIAN_EMAIL not set — Atlassian auth will 401; polling disabled")
         return
 
     try:
@@ -154,7 +271,6 @@ def _poll_jira_confluence(interval: int, stop: threading.Event, last_seen: dict)
 
     jira_url = os.environ.get("JIRA_BASE_URL", "")
     conf_url = os.environ.get("CONFLUENCE_BASE_URL", "")
-    jira_email = os.environ.get("ATLASSIAN_EMAIL", "")
     jira_jql = os.environ.get(
         "JIRA_WATCHER_JQL",
         'labels = "architecture-decision" AND updated > -2m',
@@ -162,18 +278,20 @@ def _poll_jira_confluence(interval: int, stop: threading.Event, last_seen: dict)
     confluence_spaces_raw = os.environ.get("CONFLUENCE_WATCHER_SPACES", "")
     confluence_spaces = [s.strip() for s in confluence_spaces_raw.split(",") if s.strip()]
 
-    auth = (jira_email, atlassian_token)
+    auth = (atlassian_email, atlassian_token)
 
     while not stop.is_set():
         stop.wait(interval)
         if stop.is_set():
             break
 
+        # Jira: /rest/api/3/search was deprecated in 2025 (returns 410 Gone).
+        # New endpoint is /rest/api/3/search/jql.
         if jira_url:
             try:
                 resp = httpx.get(
-                    f"{jira_url}/rest/api/3/search",
-                    params={"jql": jira_jql, "maxResults": 5},
+                    f"{jira_url}/rest/api/3/search/jql",
+                    params={"jql": jira_jql, "maxResults": 5, "fields": "summary"},
                     auth=auth,
                     timeout=10,
                 )
@@ -185,9 +303,12 @@ def _poll_jira_confluence(interval: int, stop: threading.Event, last_seen: dict)
                             log.info("Jira: new issue %s — triggering jira_sync", issue["key"])
                             _create_k8s_job("jira_sync", source="jira-poll")
                             break
+                elif resp.status_code >= 400:
+                    log.warning("Jira poll HTTP %d: %s", resp.status_code, resp.text[:200])
             except Exception as exc:
                 log.warning("Jira poll error: %s", exc)
 
+        # Confluence: CQL space keys MUST be quoted — bare keys cause HTTP 400
         if conf_url and confluence_spaces:
             try:
                 since = (datetime.now(UTC) - timedelta(minutes=2)).strftime(
@@ -211,6 +332,8 @@ def _poll_jira_confluence(interval: int, stop: threading.Event, last_seen: dict)
                             log.info("Confluence: new page %r — triggering confluence_sync", page["title"])
                             _create_k8s_job("confluence_sync", source="confluence-poll")
                             break
+                elif resp.status_code >= 400:
+                    log.warning("Confluence poll HTTP %d: %s", resp.status_code, resp.text[:200])
             except Exception as exc:
                 log.warning("Confluence poll error: %s", exc)
 
@@ -292,16 +415,35 @@ def run(poll_interval: int = 60, fail_on_disconnect: bool = True) -> int:
 
         text = event.get("text", "")
         routine = _route_message(text)
-        if routine:
-            log.info("Slack → routine=%s text=%r", routine, text[:80])
-            created = _create_k8s_job(routine, source="slack-socket")
-            if created:
-                with contextlib.suppress(Exception):
-                    web_client.reactions_add(
-                        channel=event["channel"],
-                        timestamp=event["ts"],
-                        name="white_check_mark",
-                    )
+        if not routine:
+            return
+
+        log.info("Slack → routine=%s text=%r", routine, text[:80])
+        job_name = _create_k8s_job(routine, source="slack-socket")
+
+        if job_name:
+            # Optional thumbs-up reaction (needs reactions:write scope)
+            with contextlib.suppress(Exception):
+                web_client.reactions_add(
+                    channel=event["channel"],
+                    timestamp=event["ts"],
+                    name="white_check_mark",
+                )
+            # Watcher reports completion (or failure with log tail) back as thread reply
+            watcher = threading.Thread(
+                target=_watch_job_and_notify,
+                args=(job_name, routine, web_client, event["channel"], event["ts"]),
+                daemon=True,
+            )
+            watcher.start()
+        else:
+            # Job creation failed — surface it so the user isn't left wondering
+            with contextlib.suppress(Exception):
+                web_client.chat_postMessage(
+                    channel=event["channel"],
+                    thread_ts=event["ts"],
+                    text=f":warning: Could not start `{routine}` — it may already be running, or check listener logs.",
+                )
 
     while True:
         try:
