@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.12.0] — 2026-05-13
+
+### Added — full-corpus collection
+
+- **`teammate import {jira,confluence,github,slack,all}`** — bulk + incremental
+  collectors that walk each source's HTTP API, redact secrets, and write
+  standardised markdown files under `archive/<source>/...` in the brain repo.
+- **Standard frontmatter schema** — every imported file carries
+  `source`, `source_type`, `source_id`, `source_url`, `title`,
+  `fetched_at`, `last_modified`, `author`, `labels`, plus a free-form
+  `extra` block of source-specific fields.
+- **Watermark / incremental sync** — each importer stores its high-water mark
+  in `<brain>/.teammate-sync/state.json`; subsequent runs only fetch items
+  changed since.
+- **`teammate.importers.redact`** — a defence-in-depth secret/PII scrub run
+  on every body before write. Catches AWS/Slack/GitHub/Atlassian/Anthropic/OpenAI
+  tokens, URL `?token=` params, Authorization bearer headers.
+- New optional dependency group: `claude-teammate[importers]`.
+
+### Directory layout introduced
+```
+brain/
+├── archive/                      ← new
+│   ├── github/<owner>/<repo>/{issues,pull_requests,readme,…}/
+│   ├── jira/<PROJECT>/<KEY>.md
+│   ├── confluence/<SPACE>/<page-id>-<slug>.md
+│   └── slack/<channel>/YYYY/MM/DD-messages.md
+├── .teammate-sync/state.json     ← new (small JSON, git-tracked)
+└── .teammate-cache/index.sqlite  ← gitignored, rebuilt from archive/
+```
+
 ## [0.11.2] — 2026-05-12
 
 ### Added — daily_digest routine

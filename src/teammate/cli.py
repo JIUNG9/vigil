@@ -35,6 +35,7 @@ Subcommands:
 from __future__ import annotations
 
 import json as _json
+import logging
 import os
 import re
 import sqlite3
@@ -1790,6 +1791,104 @@ def _render_brain_pulse(pulse) -> None:  # type: ignore[no-untyped-def]
 
     console.print("Run `teammate ask \"...\"` to dig deeper.")
     console.print(rule)
+
+
+# ---------- import (bulk corpus collection — v0.12) ----------
+
+
+@main.group("import")
+def import_group() -> None:
+    """Bulk-collect source content into ``<brain>/archive/<source>/``.
+
+    Each subcommand reads its source via HTTP, redacts secrets, and writes
+    one markdown file per item with standard frontmatter. Subsequent runs
+    are incremental — the watermark is in ``.teammate-sync/state.json``.
+
+    Required env vars per source — see ``docs/IMPORT.md``.
+    """
+
+
+def _resolve_brain_root() -> Path:
+    return Path(os.environ.get("TEAMMATE_BRAIN_ROOT") or Path.cwd())
+
+
+def _run_importer(importer_cls, dry_run: bool) -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s — %(message)s",
+    )
+    brain_root = _resolve_brain_root()
+    importer = importer_cls(brain_root, dry_run=dry_run)
+    result = importer.run()
+    click.echo(str(result))
+    if result.errors > 0:
+        sys.exit(1)
+
+
+@import_group.command("jira")
+@click.option("--dry-run/--no-dry-run", default=False, show_default=True,
+              help="Render but don't write files / advance watermark.")
+def import_jira(dry_run: bool) -> None:
+    """Import Jira issues into archive/jira/.
+
+    Required env: ATLASSIAN_API_TOKEN, ATLASSIAN_EMAIL, JIRA_BASE_URL, JIRA_PROJECTS.
+    """
+    from teammate.importers.jira import JiraImporter
+    _run_importer(JiraImporter, dry_run)
+
+
+@import_group.command("confluence")
+@click.option("--dry-run/--no-dry-run", default=False, show_default=True,
+              help="Render but don't write files / advance watermark.")
+def import_confluence(dry_run: bool) -> None:
+    """Import Confluence pages into archive/confluence/.
+
+    Required env: ATLASSIAN_API_TOKEN, ATLASSIAN_EMAIL,
+    CONFLUENCE_BASE_URL, CONFLUENCE_SPACES.
+    """
+    from teammate.importers.confluence import ConfluenceImporter
+    _run_importer(ConfluenceImporter, dry_run)
+
+
+@import_group.command("github")
+@click.option("--dry-run/--no-dry-run", default=False, show_default=True,
+              help="Render but don't write files / advance watermark.")
+def import_github(dry_run: bool) -> None:
+    """Import GitHub READMEs + issues + PRs into archive/github/.
+
+    Required env: GITHUB_PAT, GITHUB_ORG. Optional: GITHUB_REPOS.
+    """
+    from teammate.importers.github import GitHubImporter
+    _run_importer(GitHubImporter, dry_run)
+
+
+@import_group.command("slack")
+@click.option("--dry-run/--no-dry-run", default=False, show_default=True,
+              help="Render but don't write files / advance watermark.")
+def import_slack(dry_run: bool) -> None:
+    """Import Slack messages into archive/slack/.
+
+    Required env: SLACK_BOT_TOKEN. Optional: SLACK_IMPORT_CHANNELS, SLACK_HISTORY_DAYS.
+    """
+    from teammate.importers.slack import SlackImporter
+    _run_importer(SlackImporter, dry_run)
+
+
+@import_group.command("all")
+@click.option("--dry-run/--no-dry-run", default=False, show_default=True)
+def import_all(dry_run: bool) -> None:
+    """Run all four importers in sequence (jira → confluence → github → slack)."""
+    from teammate.importers.confluence import ConfluenceImporter
+    from teammate.importers.github import GitHubImporter
+    from teammate.importers.jira import JiraImporter
+    from teammate.importers.slack import SlackImporter
+    for cls in (JiraImporter, ConfluenceImporter, GitHubImporter, SlackImporter):
+        try:
+            _run_importer(cls, dry_run)
+        except SystemExit:
+            click.echo(f"  {cls.__name__} had errors — continuing", err=True)
+        except Exception as exc:
+            click.echo(f"  {cls.__name__} crashed: {exc}", err=True)
 
 
 if __name__ == "__main__":
