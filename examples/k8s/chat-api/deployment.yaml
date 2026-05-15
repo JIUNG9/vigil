@@ -1,0 +1,138 @@
+# =============================================================================
+# teammate-chat-api — FastAPI service for the browser chat UI
+# =============================================================================
+# Public-facing via Ingress at chat.teammate.<your-domain>. SSO via oauth2-proxy.
+# Stateless — scale horizontally. Reads from Qdrant + Ollama (both in-cluster).
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: teammate-chat-api
+  namespace: teammate-agent
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: {maxUnavailable: 1, maxSurge: 1}
+  selector:
+    matchLabels: {app: teammate-chat-api}
+  template:
+    metadata:
+      labels: {app: teammate-chat-api}
+    spec:
+      serviceAccountName: teammate-agent
+      containers:
+      - name: chat-api
+        image: your-registry/teammate:latest
+        command: ["uvicorn", "teammate.chat_api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+        ports:
+        - {containerPort: 8000}
+        env:
+        - {name: QDRANT_URL,         value: "http://qdrant:6333"}
+        - {name: QDRANT_COLLECTION,  value: "brain"}
+        - {name: OLLAMA_URL,         value: "http://ollama.ollama.svc.cluster.local:11434"}
+        - {name: OLLAMA_LLM_MODEL,   value: "llama3.2:3b"}
+        - {name: OLLAMA_EMBED_MODEL, value: "nomic-embed-text"}
+        - {name: TEAMMATE_NAMESPACE, value: "teammate-agent"}
+        readinessProbe:
+          httpGet: {path: /healthz, port: 8000}
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        livenessProbe:
+          httpGet: {path: /healthz, port: 8000}
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        resources:
+          requests: {cpu: 100m, memory: 256Mi}
+          limits:   {cpu: 1,    memory: 1Gi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: teammate-chat-api
+  namespace: teammate-agent
+spec:
+  selector: {app: teammate-chat-api}
+  ports:
+  - {port: 80, targetPort: 8000}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: teammate-chat-api
+  namespace: teammate-agent
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/target-type: ip
+    external-dns.alpha.kubernetes.io/hostname: chat.teammate.your-domain.net
+    # SSO via oauth2-proxy sidecar (deploy separately)
+    alb.ingress.kubernetes.io/auth-type: oidc
+spec:
+  rules:
+  - host: chat.teammate.your-domain.net
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: teammate-chat-api
+            port: {number: 80}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: teammate-indexer
+  namespace: teammate-agent
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate   # single writer
+  selector:
+    matchLabels: {app: teammate-indexer}
+  template:
+    metadata:
+      labels: {app: teammate-indexer}
+    spec:
+      serviceAccountName: teammate-agent
+      initContainers:
+      - name: clone-brain
+        image: alpine/git:2.43.0
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          set -eu
+          git clone --depth 1 "https://x-access-token:${GITHUB_PAT}@github.com/${BRAIN_REPO}.git" /etc/teammate/brain
+          chown -R 1000:1000 /etc/teammate/brain
+        env:
+        - {name: BRAIN_REPO, value: "your-org/your-brain-repo"}
+        - {name: GITHUB_PAT, valueFrom: {secretKeyRef: {name: teammate-credentials, key: github-pat}}}
+        volumeMounts:
+        - {name: brain, mountPath: /etc/teammate/brain}
+      containers:
+      - name: indexer
+        image: your-registry/teammate:latest
+        # Long-running: polls brain for changes every 5 min, then runs indexer
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          while true; do
+            git -C /etc/teammate/brain pull --rebase
+            teammate index
+            sleep 300
+          done
+        env:
+        - {name: TEAMMATE_BRAIN_ROOT, value: /etc/teammate/brain}
+        - {name: QDRANT_URL,          value: "http://qdrant:6333"}
+        - {name: OLLAMA_URL,          value: "http://ollama.ollama.svc.cluster.local:11434"}
+        volumeMounts:
+        - {name: brain, mountPath: /etc/teammate/brain}
+        resources:
+          requests: {cpu: 200m, memory: 512Mi}
+          limits:   {cpu: 2,    memory: 2Gi}
+      volumes:
+      - name: brain
+        emptyDir: {}

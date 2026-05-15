@@ -1,0 +1,78 @@
+# =============================================================================
+# Qdrant — k8s-native vector DB for teammate v1
+# =============================================================================
+# Single replica + PVC. Single-writer enforced at the indexer layer
+# (teammate-indexer Deployment is replicas=1, Recreate strategy).
+# Concurrent reads from chat-api + agent routines are lock-free (MVCC).
+#
+# Deploy via Helm:
+#   helm repo add qdrant https://qdrant.to/helm
+#   helm upgrade --install qdrant qdrant/qdrant -n teammate-agent \
+#     -f qdrant-values.yaml
+#
+# Or use this raw manifest if not using Helm.
+# =============================================================================
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: qdrant-storage
+  namespace: teammate-agent
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: gp3
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: qdrant
+  namespace: teammate-agent
+spec:
+  serviceName: qdrant
+  replicas: 1
+  selector:
+    matchLabels: {app: qdrant}
+  template:
+    metadata:
+      labels: {app: qdrant}
+    spec:
+      containers:
+      - name: qdrant
+        image: qdrant/qdrant:v1.10.1
+        ports:
+        - {name: rest,  containerPort: 6333}
+        - {name: grpc,  containerPort: 6334}
+        env:
+        - {name: QDRANT__SERVICE__HTTP_PORT, value: "6333"}
+        - {name: QDRANT__SERVICE__GRPC_PORT, value: "6334"}
+        - {name: QDRANT__LOG_LEVEL,           value: "INFO"}
+        volumeMounts:
+        - {name: storage, mountPath: /qdrant/storage}
+        readinessProbe:
+          httpGet: {path: /readyz, port: 6333}
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        livenessProbe:
+          httpGet: {path: /livez, port: 6333}
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        resources:
+          requests: {cpu: 200m, memory: 512Mi}
+          limits:   {cpu: 2,    memory: 4Gi}
+      volumes:
+      - name: storage
+        persistentVolumeClaim:
+          claimName: qdrant-storage
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qdrant
+  namespace: teammate-agent
+spec:
+  selector: {app: qdrant}
+  ports:
+  - {name: rest, port: 6333, targetPort: rest}
+  - {name: grpc, port: 6334, targetPort: grpc}
