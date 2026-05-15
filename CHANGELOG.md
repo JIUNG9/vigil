@@ -1,5 +1,60 @@
 # Changelog
 
+## [4.0.0] — 2026-05-15
+
+### Added — postmortem auto-drafter
+- `teammate.war.postmortem.draft_postmortem(incident_id)` reads timeline +
+  preload from Postgres, composes markdown, pushes to Confluence as DRAFT
+  (never auto-publishes). Series 7 article 7 (retrospective) covers the
+  full journey.
+
+## [3.0.0] — 2026-05-15
+
+### Added — war-rooms + client-side Claude agent
+- `teammate.war.alert_bridge` — 3-source incident creation (auto / engineer /
+  CS) with triage state machine
+- `teammate.war.preload` — 7-panel auto-pre-load (summary, similar past
+  incidents, root cause candidates, runbooks, action checklist, participants,
+  live data URLs)
+- `teammate.war.participant_selector` — on-call user-group + CODEOWNERS +
+  git-blame ranking
+- `teammate.client_agent` — pipx-installable, `teammate war join/leave/status`
+  CLI, Claude Code PreToolUse + PostToolUse hooks, war-room MCP server
+- Destructive-action soft-gate (kubectl delete / terraform destroy / aws s3 rm /
+  git push --force) requiring incident-lead approval
+- Postgres schema (`examples/k8s/war-api/postgres-schema.sql`) with
+  optimistic-locking version columns
+
+### Extras added
+- `claude-teammate[war]` — FastAPI + psycopg + kubernetes
+- `claude-teammate[client-agent]` — pipx-installable client agent
+
+## [2.0.0] — 2026-05-15
+
+### Added — MTTD layer
+- `teammate.mttd.rule_layer` — YAML watchlist → SigNoz alert rules
+  reconciler (idempotent, drift-aware)
+- `teammate.mttd.similarity_layer` — Qdrant similarity search over
+  `archive/jira/INCD/` for past-incident lookup
+- Tier 3 (LLM pattern prediction) built but feature-flag-disabled by default
+
+### Extras added
+- `claude-teammate[mttd]` — httpx + PyYAML
+
+## [1.0.0] — 2026-05-15
+
+### Added — Qdrant + chat-api + streaming UI
+- `teammate.indexer` — single-writer Deployment with per-doc SHA tracking
+- `teammate.chat_api` — FastAPI service: `/ask` SSE streaming, `/search`,
+  `/reindex` (idempotent), `/feed`, `/index-status`
+- Per-source confidence aggregation in search responses
+- User-tunable per-source weights via search request
+- `examples/k8s/qdrant/qdrant.yaml` — StatefulSet + 20 GB PVC
+- `examples/k8s/chat-api/deployment.yaml` — chat-api + indexer + ALB Ingress
+
+### Extras added
+- `claude-teammate[chat-api]` — FastAPI + uvicorn + sse-starlette + kubernetes
+
 ## [0.12.0] — 2026-05-13
 
 ### Added — full-corpus collection
