@@ -3,14 +3,14 @@ requires = ["hatchling>=1.18"]
 build-backend = "hatchling.build"
 
 [project]
-name = "claude-teammate"
-version = "4.0.0"
-description = "Your team's brain in your team's git repo. Local-LLM-queryable, Obsidian-friendly. The Teamspace alternative for teams who can't put context in someone else's cloud."
+name = "vigil"
+version = "5.0.0"
+description = "Vigil — a self-hosted DevSecOps command center. Reliability ops (SLA/SLO/SLI/MTTD/MTTR) over a git-backed team-brain corpus."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 authors = [
-  { name = "teammate authors" },
+  { name = "vigil authors" },
 ]
 keywords = [
   "claude-code",
@@ -83,7 +83,7 @@ war = [
   "httpx>=0.27",
 ]
 client-agent = [
-  # pipx-installable: teammate war join/leave + Claude Code hooks + MCP
+  # pipx-installable: vigil incident join/leave + Claude Code hooks + MCP
   "click>=8.1",
   "httpx>=0.27",
 ]
@@ -93,11 +93,11 @@ dev = [
   "ruff>=0.6",
 ]
 all = [
-  "claude-teammate[rag,listen,importers,chat-api,mttd,war,client-agent,dev]",
+  "vigil[rag,listen,importers,chat-api,mttd,war,client-agent,dev]",
 ]
 
 [project.scripts]
-teammate = "teammate.cli:main"
+vigil = "vigil.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/JIUNG9/teammate"
@@ -105,14 +105,14 @@ Repository = "https://github.com/JIUNG9/teammate"
 Issues = "https://github.com/JIUNG9/teammate/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/teammate"]
+packages = ["src/vigil"]
 
 [tool.hatch.build.targets.wheel.shared-data]
-"templates/team-brain-skeleton" = "share/teammate/team-brain-skeleton"
+"templates/team-brain-skeleton" = "share/vigil/team-brain-skeleton"
 
 [tool.hatch.build.targets.sdist]
 include = [
-  "src/teammate",
+  "src/vigil",
   "templates",
   "hooks",
   "skills",
