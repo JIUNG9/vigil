@@ -1,8 +1,8 @@
 # Slack Socket Mode — Real-time Event Listener
 
-teammate v0.11 adds a persistent WebSocket listener that replaces cron-based polling
+vigil v0.11 adds a persistent WebSocket listener that replaces cron-based polling
 for Slack events. The listener runs as a single-replica Kubernetes Deployment and
-triggers K8s Jobs for teammate routines **in real time** when a matching Slack message
+triggers K8s Jobs for vigil routines **in real time** when a matching Slack message
 arrives.
 
 ## How it works
@@ -11,11 +11,11 @@ arrives.
 Slack workspace
     │  WebSocket (outbound from cluster — no public URL needed)
     ▼
-teammate-event-listener Deployment (replicas=1)
+vigil-event-listener Deployment (replicas=1)
     │  creates K8s Job on matching message
     ▼
-teammate-{routine} CronJob template
-    │  runs teammate agent run <routine>
+vigil-{routine} CronJob template
+    │  runs vigil agent run <routine>
     ▼
 brain repo / Slack / Jira / Confluence
 ```
@@ -33,7 +33,7 @@ Atlassian webhooks require a publicly reachable URL.
 1. **Slack app with Socket Mode enabled.**
    - Go to `api.slack.com/apps` → your app → **Socket Mode** → Enable
    - Under **App-Level Tokens** → **Generate New Token**
-     - Name: e.g. `teammate-socket`
+     - Name: e.g. `vigil-socket`
      - Scope: `connections:write`
    - Copy the `xapp-...` token — this is `SLACK_APP_TOKEN`
 
@@ -50,7 +50,7 @@ Atlassian webhooks require a publicly reachable URL.
 
 ```bash
 # Install with listen extras
-pip install 'claude-teammate[listen]'
+pip install 'vigil[listen]'
 
 # Set tokens (never commit these)
 export SLACK_APP_TOKEN="xapp-..."
@@ -65,7 +65,7 @@ export CONFLUENCE_BASE_URL="https://your-org.atlassian.net/wiki"
 export CONFLUENCE_WATCHER_SPACES="DOCS,ENG"   # space keys to watch
 
 # Start the listener (Ctrl-C to stop; --no-fail-on-disconnect keeps it running locally)
-teammate agent listen --no-fail-on-disconnect
+vigil agent listen --no-fail-on-disconnect
 
 # Test it: say "brain pulse" in #ops-alerts and watch the log
 ```
@@ -78,7 +78,7 @@ INFO  Slack Socket Mode connected (watching: ops-alerts)
 When you send a matching message in the watched channel:
 ```
 INFO  Slack → routine=brain_pulse text='brain pulse'
-INFO  created Job teammate-agent/brain-pulse-slack-socket-1747012345 (routine=brain_pulse source=slack-socket)
+INFO  created Job vigil-agent/brain-pulse-slack-socket-1747012345 (routine=brain_pulse source=slack-socket)
 ```
 
 ---
@@ -110,7 +110,7 @@ See `examples/k8s/event-listener/` for complete manifests:
 
 ### Liveness probe
 
-The listener writes `/tmp/teammate-heartbeat` every 30s while the socket is alive.
+The listener writes `/tmp/vigil-heartbeat` every 30s while the socket is alive.
 The probe fails if the file is more than 90s old → pod restarts → reconnects.
 
 ```yaml
@@ -120,8 +120,8 @@ livenessProbe:
       - /bin/sh
       - -c
       - |
-        test -f /tmp/teammate-heartbeat && \
-        [ $(( $(date +%s) - $(stat -c %Y /tmp/teammate-heartbeat) )) -lt 90 ]
+        test -f /tmp/vigil-heartbeat && \
+        [ $(( $(date +%s) - $(stat -c %Y /tmp/vigil-heartbeat) )) -lt 90 ]
   initialDelaySeconds: 60
   periodSeconds: 30
   failureThreshold: 2
@@ -157,7 +157,7 @@ API Gateway endpoint. This is out of scope for the default setup.
 | `SLACK_APP_TOKEN` | yes | `xapp-...` App-Level Token (Socket Mode) |
 | `SLACK_BOT_TOKEN` | yes | `xoxb-...` Bot Token |
 | `TEAMMATE_SLACK_CHANNELS` | no | Comma-separated channel names. Empty = all channels. |
-| `TEAMMATE_NAMESPACE` | no | K8s namespace for Job creation (default: `teammate-agent`) |
+| `TEAMMATE_NAMESPACE` | no | K8s namespace for Job creation (default: `vigil-agent`) |
 | `ATLASSIAN_API_TOKEN` | no | Enables Jira/Confluence polling |
 | `ATLASSIAN_EMAIL` | no | Email for Atlassian Basic auth |
 | `JIRA_BASE_URL` | no | e.g. `https://your-org.atlassian.net` |

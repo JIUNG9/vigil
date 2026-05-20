@@ -1,7 +1,7 @@
 # Providers
 
-`teammate` keeps the LLM and embedding backend behind two ABCs in
-`teammate.providers`:
+`vigil` keeps the LLM and embedding backend behind two ABCs in
+`vigil.providers`:
 
 - `LLMProvider.generate(prompt, system=None, *, stream=True)` — yields
   text deltas as `str`. Non-text events (tool-call deltas, stop reasons,
@@ -34,14 +34,14 @@ without touching call sites.
 Precedence (highest first):
 
 1. Environment variables (`TEAMMATE_LLM_*` / `TEAMMATE_EMBEDDING_*`).
-2. Per-repo: `<brain_root>/.teammate/config.toml`.
-3. Per-user: `~/.teammate/config.toml`.
+2. Per-repo: `<brain_root>/.vigil/config.toml`.
+3. Per-user: `~/.vigil/config.toml`.
 4. Built-in defaults (Ollama on `localhost:11434`).
 
 ### TOML schema
 
 ```toml
-# .teammate/config.toml
+# .vigil/config.toml
 [llm]
 provider = "ollama"
 model    = "llama3.2:3b"
@@ -77,22 +77,22 @@ Per-section keys recognized in v0.3:
 | `TEAMMATE_EMBEDDING_HOST` | … |
 | `TEAMMATE_EMBEDDING_API_KEY_ENV` | … |
 
-Run `teammate config show` to see the effective config. Any `*api_key*`
+Run `vigil config show` to see the effective config. Any `*api_key*`
 value (other than `_env` indirection) is redacted in the output.
 
 ## Index versioning (read this if you change providers)
 
-The first time `teammate index` runs with a given embedder, it stamps the
+The first time `vigil index` runs with a given embedder, it stamps the
 index file with `(provider, embedding_model, embedding_dim, created_at,
-teammate_version)`. Every subsequent open re-checks the stamp.
+vigil_version)`. Every subsequent open re-checks the stamp.
 
 If the stamp disagrees with the configured embedder — different provider,
-different model, different `dim` — `teammate` refuses to query and tells
+different model, different `dim` — `vigil` refuses to query and tells
 you to rebuild:
 
 ```
 Index was built by `nomic-embed-text` (768d, ollama) but current config is
-`text-embedding-3-small` (1536d, openai). Run `teammate index --rebuild`
+`text-embedding-3-small` (1536d, openai). Run `vigil index --rebuild`
 to re-embed under the new provider.
 ```
 
@@ -100,13 +100,13 @@ This is non-optional. Embeddings produced by different models live in
 different geometries — cosine similarity across them is silently meaningless.
 The stamp turns a silent corruption into a loud error.
 
-`teammate index --rebuild` wipes the chunks table, re-stamps the index
+`vigil index --rebuild` wipes the chunks table, re-stamps the index
 under the current provider, and re-embeds from scratch.
 
 ## Migration notes
 
-- `from teammate.rag.ollama import OllamaClient` still works in v0.3 but
-  emits a `DeprecationWarning`. Import from `teammate.providers` instead.
+- `from vigil.rag.ollama import OllamaClient` still works in v0.3 but
+  emits a `DeprecationWarning`. Import from `vigil.providers` instead.
 - `index_paths(... ollama=...)` is now `index_paths(... embedder=...)`.
   Pass an `EmbeddingProvider`, not an `OllamaClient`.
 - `answer(... ollama=...)` is now `answer(... embedder=..., llm=...)`. The

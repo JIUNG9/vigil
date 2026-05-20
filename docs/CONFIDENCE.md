@@ -27,7 +27,7 @@ LLM is **not** invoked. The user gets:
 ```
 I don't know — the closest match scored 0.31, below the floor of 0.50.
 Closest file: `docs/runbooks/auth-deploy.md`. Consider rewording the
-query, or run `teammate index --rebuild` if you expected this to be in
+query, or run `vigil index --rebuild` if you expected this to be in
 the brain.
 ```
 
@@ -94,7 +94,7 @@ reach for parentheses despite the prompt; we don't fight them.
 
 ## Guard 3 — audit JSONL
 
-Lives at `<brain-root>/.teammate-cache/audit.jsonl`. One line per
+Lives at `<brain-root>/.vigil-cache/audit.jsonl`. One line per
 retrieval. Schema:
 
 ```json
@@ -130,11 +130,11 @@ clobbering. No data is lost.
 ### CLI
 
 ```bash
-teammate audit                                    # last 20 records
-teammate audit --since 2026-05-01                 # ISO date filter
-teammate audit --query-grep deploy                # regex on query field
-teammate audit --json                             # raw JSONL on stdout
-teammate audit --limit 100                        # widen the window
+vigil audit                                    # last 20 records
+vigil audit --since 2026-05-01                 # ISO date filter
+vigil audit --query-grep deploy                # regex on query field
+vigil audit --json                             # raw JSONL on stdout
+vigil audit --limit 100                        # widen the window
 ```
 
 The output is human-readable by default:
@@ -215,13 +215,13 @@ retrieve top-k
 ## When you'd want to tune these
 
 - **Score threshold too aggressive.** You see a lot of "I don't know"
-  on queries that should match. Either re-index (`teammate index
+  on queries that should match. Either re-index (`vigil index
   --rebuild`) — your embedding stamp may not match the configured
   provider — or lower the floor in `[confidence] score_threshold`.
 - **Citation guard stripping good answers.** Your local model is
   ignoring the citation rule. Try a larger model, or relax the prompt
   in `rag/ask.py` for your fork.
-- **Audit log too noisy.** Add `.teammate-cache/audit*.jsonl` to your
+- **Audit log too noisy.** Add `.vigil-cache/audit*.jsonl` to your
   `.gitignore`. (The default template already does.)
 - **Per-action floor too tight.** Routine X is producing useful work
   that is being suppressed. Lower its floor in

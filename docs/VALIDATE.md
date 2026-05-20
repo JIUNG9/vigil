@@ -1,4 +1,4 @@
-# `teammate validate` — read-only structural check
+# `vigil validate` — read-only structural check
 
 Validation is what CI runs on every push. It must be:
 
@@ -15,9 +15,9 @@ We're catching the structural mistakes that turn a brain into a junk drawer.
 ## Usage
 
 ```bash
-teammate validate
-teammate validate --json                 # machine-readable
-teammate validate --max-claude-md-kb 8   # raise the size budget
+vigil validate
+vigil validate --json                 # machine-readable
+vigil validate --max-claude-md-kb 8   # raise the size budget
 ```
 
 ## The seven checks
@@ -63,7 +63,7 @@ Files that are neither are orphans — they exist, but nobody finds them.
 
 These paths are tolerated by `iter_markdown` but they're not where the
 brain template puts content. The WARN nudges teams to migrate via
-`teammate adopt`'s `MOVE_SUGGESTED` entries.
+`vigil adopt`'s `MOVE_SUGGESTED` entries.
 
 ### `binary_files_in_brain`
 
@@ -87,7 +87,7 @@ it in a stale-result complaint six weeks later.
 ## Exit codes & CI integration
 
 ```bash
-teammate validate
+vigil validate
 echo $?    # 0 PASS  |  1 FAIL  |  2 WARN
 ```
 
@@ -95,7 +95,7 @@ In a GitHub Actions workflow:
 
 ```yaml
 - name: Run validate
-  run: teammate validate
+  run: vigil validate
 ```
 
 A non-zero exit fails the job. If you want to allow WARNs to pass, gate on
@@ -104,7 +104,7 @@ the JSON output instead:
 ```yaml
 - name: Run validate
   run: |
-    teammate validate --json > validate.json
+    vigil validate --json > validate.json
     code=$?
     if [ "$code" -eq 1 ]; then exit 1; fi
     # WARN-only is OK.
@@ -144,5 +144,5 @@ That's a human review concern. validate is the seatbelt, not the driver.
 
 ## See also
 
-- `teammate adopt` — `docs/ADOPT.md`
-- `teammate doctor` — runtime diagnostic (config, reachability, models, index)
+- `vigil adopt` — `docs/ADOPT.md`
+- `vigil doctor` — runtime diagnostic (config, reachability, models, index)

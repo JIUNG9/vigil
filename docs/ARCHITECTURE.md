@@ -38,7 +38,7 @@ SOURCES
   GitHub · Jira · Confluence · Slack · SigNoz/APM
          │
          ▼  HTTP API import (4 CronJobs + alert-tail + event-listener)
-INGESTION (k8s · teammate-agent namespace)
+INGESTION (k8s · vigil-agent namespace)
 ─────────────────────────────────────────
   4 import CronJobs    Nightly 02:00–03:30 KST
                        Watermark-resume, secret redaction
@@ -47,7 +47,7 @@ INGESTION (k8s · teammate-agent namespace)
   11 agent CronJobs    daily_digest, jira_sync, weekly_digest, ...
   watchlist-syncer     5-min: brain/watchlist/*.yaml → SigNoz alert rules
          │
-         ▼  git push (auto-committed by teammate-agent bot)
+         ▼  git push (auto-committed by vigil-agent bot)
 SOURCE OF TRUTH (git)
 ─────────────────────
   github.com/<org>/<brain-repo>
@@ -57,12 +57,12 @@ SOURCE OF TRUTH (git)
     archive/slack/<channel>/YYYY/MM/DD.md     (daily rollups)
     docs/runbooks/  knowledge/  decisions/    (human-curated)
     watchlist/*.yaml                           (alert rules)
-    .teammate-sync/state.json                  (watermarks per source)
+    .vigil-sync/state.json                  (watermarks per source)
          │
          ▼  git pull every 5 min
 INDEX BUILD (single writer)
 ───────────────────────────
-  teammate-indexer Deployment (replicas=1, strategy=Recreate)
+  vigil-indexer Deployment (replicas=1, strategy=Recreate)
     Per-doc SHA tracking → only re-embed changed chunks
     Idempotent point IDs (md5(path:chunk_idx))
                               │
@@ -82,7 +82,7 @@ STORAGE
          ▼  HTTP reads (lock-free, MVCC)
 API SERVICES
 ────────────
-  teammate-chat-api (v1)       teammate-war-api (v3)
+  vigil-chat-api (v1)       vigil-war-api (v3)
   2 replicas, rolling          2 replicas, rolling
   GET /ask?q=... (SSE)         POST /incident (auto/eng/cs)
   POST /search                 GET /incident/<id>/sse
@@ -93,15 +93,15 @@ API SERVICES
          ▼  Next.js rewrites: /api/chat/* · /api/war/*
 UI
 ──
-  teammate-chat-web (Next.js 14, standalone, ALB Ingress)
-  chat.teammate.<your-domain> with oauth2-proxy SSO
+  vigil-chat-web (Next.js 14, standalone, ALB Ingress)
+  chat.vigil.<your-domain> with oauth2-proxy SSO
   Tabs: Chat · Watch · War · Feed · Index · Settings
          ▲
          │
 END USERS
 ─────────
   Browser           Slack             Engineer laptops
-  (Keycloak SSO)    (keywords +       (teammate war join <id>:
+  (Keycloak SSO)    (keywords +       (vigil war join <id>:
                      slash cmds)        Claude Code hooks + MCP)
 ```
 
@@ -137,7 +137,7 @@ auto MTTD       /war (engineer)     /war-report (CS / external)
                               ▼                                       
               CLIENT AGENT (per engineer laptop)                      
               ─────────────────────────────────                       
-              teammate war join <id>                                  
+              vigil war join <id>                                  
                 installs Claude Code PreToolUse/PostToolUse hooks    
                 installs war-room MCP server (subprocess)             
                                                                       
@@ -163,7 +163,7 @@ auto MTTD       /war (engineer)     /war-report (CS / external)
 | chat-api / war-api / web / indexer pods (scheduled on existing nodes) | $0 |
 | Aurora Serverless v2 (war-room state, ~50 MB) | **~$60** |
 | _or_ in-cluster Postgres + 10 GB PVC | _~$2_ |
-| ALB Ingress for chat.teammate.* | ~$22 (reuse existing → $0) |
+| ALB Ingress for chat.vigil.* | ~$22 (reuse existing → $0) |
 | ECR storage for new images | <$1 |
 | **Total — Aurora path** | **~$155/mo** |
 | **Total — in-cluster Postgres path** | **~$95/mo** |
@@ -198,7 +198,7 @@ auto MTTD       /war (engineer)     /war-report (CS / external)
 **v0.10 baseline (May 8):**
 - 11 agent CronJobs, each rebuilding its own SQLite-vec index per run
 - ~30-45 min per Job to rebuild from ~100 brain markdown files
-- Engineers queried local laptop indexes via `teammate ask`
+- Engineers queried local laptop indexes via `vigil ask`
 - Slack triggers via 15-min polling
 - No way to import Jira / Confluence / GitHub / Slack
 - MTTD = whatever SigNoz already had
@@ -209,7 +209,7 @@ auto MTTD       /war (engineer)     /war-report (CS / external)
 - Single persistent Qdrant; indexer builds once with per-doc SHA gating (3 min delta)
 - 24,853 docs across 4 sources, auto-imported nightly
 - Real-time Slack triggers via Socket Mode (<1s latency, no public URL)
-- Browser chat UI at `chat.teammate.<your-domain>` with streaming + citations
+- Browser chat UI at `chat.vigil.<your-domain>` with streaming + citations
 - Per-source confidence badges (jira 0.82 · conf 0.71 · slack 0.43)
 - User-tunable per-source weights via Settings
 - MTTD layer: rule watchlist + similarity search over past incidents
@@ -224,10 +224,10 @@ auto MTTD       /war (engineer)     /war-report (CS / external)
 
 | Part | Title |
 |---|---|
-| 1 | [Why I built a local-first DevSecOps brain instead of using Glean or Notion AI](https://github.com/JIUNG9/teammate/blob/main/docs/series-7/01-local-first-brain.md) |
-| 2 | [Real-time Claude triggers via Slack Socket Mode (no public URL)](https://github.com/JIUNG9/teammate/blob/main/docs/series-7/02-slack-socket-mode.md) |
-| 3 | [Importing 25,000 documents from four sources, idempotently](https://github.com/JIUNG9/teammate/blob/main/docs/series-7/03-importers-25k-docs.md) |
-| 4 | [From per-pod SQLite to k8s-native Qdrant + streaming chat UI](https://github.com/JIUNG9/teammate/blob/main/docs/series-7/04-qdrant-and-chat-ui.md) |
-| 5 | [MTTD before MTTR: similarity search over your incident corpus](https://github.com/JIUNG9/teammate/blob/main/docs/series-7/05-mttd-similarity-search.md) |
-| 6 | [War-rooms that aren't blank: auto-pre-loaded incident response](https://github.com/JIUNG9/teammate/blob/main/docs/series-7/06-war-rooms-auto-preloaded.md) |
-| 7 | [Lessons from shipping an SRE assistant](https://github.com/JIUNG9/teammate/blob/main/docs/series-7/07-lessons-retrospective.md) |
+| 1 | [Why I built a local-first DevSecOps brain instead of using Glean or Notion AI](https://github.com/JIUNG9/vigil/blob/main/docs/series-7/01-local-first-brain.md) |
+| 2 | [Real-time Claude triggers via Slack Socket Mode (no public URL)](https://github.com/JIUNG9/vigil/blob/main/docs/series-7/02-slack-socket-mode.md) |
+| 3 | [Importing 25,000 documents from four sources, idempotently](https://github.com/JIUNG9/vigil/blob/main/docs/series-7/03-importers-25k-docs.md) |
+| 4 | [From per-pod SQLite to k8s-native Qdrant + streaming chat UI](https://github.com/JIUNG9/vigil/blob/main/docs/series-7/04-qdrant-and-chat-ui.md) |
+| 5 | [MTTD before MTTR: similarity search over your incident corpus](https://github.com/JIUNG9/vigil/blob/main/docs/series-7/05-mttd-similarity-search.md) |
+| 6 | [War-rooms that aren't blank: auto-pre-loaded incident response](https://github.com/JIUNG9/vigil/blob/main/docs/series-7/06-war-rooms-auto-preloaded.md) |
+| 7 | [Lessons from shipping an SRE assistant](https://github.com/JIUNG9/vigil/blob/main/docs/series-7/07-lessons-retrospective.md) |

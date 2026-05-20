@@ -1,4 +1,4 @@
-# `teammate memory-export` — leaving the team
+# `vigil memory-export` — leaving the team
 
 When you leave a team, your `~/.claude/` memory file is full of context
 the next person could use: who owns what, why we picked X over Y, the
@@ -26,13 +26,13 @@ PERSONAL entries are excluded. This is a *team* handover, not a journal.
 
 ```bash
 # 1. Generate the handover.
-teammate memory-export --memory-root ~/.claude --user alice
+vigil memory-export --memory-root ~/.claude --user alice
 # → wrote handover to ./HANDOVER-alice-2026-05-07.md
 
 # 2. Open it. Fill in the "how I worked" section.
 
 # 3. Hand it to your successor. Optionally: they run
-#    `teammate memory-import` on their own machine to fold the
+#    `vigil memory-import` on their own machine to fold the
 #    facts into their personal memory; or your team folds them
 #    into the team brain in a "Handover from alice" PR.
 ```
@@ -50,7 +50,7 @@ handing the file inside the same company and want real hostnames —
 pass `--no-redact`:
 
 ```bash
-teammate memory-export --memory-root ~/.claude --no-redact
+vigil memory-export --memory-root ~/.claude --no-redact
 ```
 
 ## `--since` filter
@@ -59,7 +59,7 @@ If your memory has years of accumulated context and you only want
 relatively recent facts, pass `--since YYYY-MM-DD`:
 
 ```bash
-teammate memory-export --since 2024-01-01
+vigil memory-export --since 2024-01-01
 ```
 
 Entries with a `since YYYY` or `as of YYYY` token older than the

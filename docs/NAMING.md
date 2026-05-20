@@ -5,7 +5,7 @@ until they've already paid. Pile up enough repos shaped like
 `foo-bar-server-api-v2`, `baz-svc`, `thing-front-prod`, and the day-one
 cost of "is this an app, an infra repo, or a library?" rolls forward
 forever — every onboarder, every grep, every audit, every stale-link
-hunt. `teammate naming` ships a configurable validator so you can pay
+hunt. `vigil naming` ships a configurable validator so you can pay
 the cost once.
 
 ## Why a naming convention
@@ -53,7 +53,7 @@ submodule edge case. Anything outside `5..6` fails the count check.
 
 The validator enforces the following. Each is a hard FAIL except where
 noted. The reference Korean shell validator at `check-repo-name.sh`
-inside the source repo encodes exactly these rules — `teammate
+inside the source repo encodes exactly these rules — `vigil
 naming check` is a port to Python with a configurable vocabulary.
 
 1. **Charset** — `[a-z0-9-]` only. No UPPER, no `_`, no spaces, no
@@ -101,7 +101,7 @@ submodule duplicates the category. Pick a service-meaningful name
 
 ## Configuring for your team
 
-Drop a `.teammate-naming.toml` at your brain root:
+Drop a `.vigil-naming.toml` at your brain root:
 
 ```toml
 [locale]
@@ -144,7 +144,7 @@ max_length = 50
 allow = []
 ```
 
-Four starter templates ship with `teammate`:
+Four starter templates ship with `vigil`:
 
 | Template          | Use case                                                      |
 |-------------------|---------------------------------------------------------------|
@@ -153,9 +153,9 @@ Four starter templates ship with `teammate`:
 | `monorepo-only`   | Single repo; convention applies to top-level dirs inside it.  |
 | `strict-iac`      | IaC galaxy. Categories `{infra, ops}`, types `{tfmod, tfstate, k8s, docs}`. |
 
-Bootstrap with `teammate naming init --template nexus-style`. Print the
-effective convention with `teammate naming list`. Test a candidate name
-with `teammate naming check acme-infra-core-billing-tfmod`.
+Bootstrap with `vigil naming init --template nexus-style`. Print the
+effective convention with `vigil naming list`. Test a candidate name
+with `vigil naming check acme-infra-core-billing-tfmod`.
 
 ## The PR-to-add-service workflow
 
@@ -163,7 +163,7 @@ The service dictionary is a feature, not friction. When a new service
 appears, the workflow is:
 
 1. PR the new entry to `[token.service].values` in
-   `.teammate-naming.toml`. The PR description names the new service,
+   `.vigil-naming.toml`. The PR description names the new service,
    its domain, and the type(s) it will produce.
 2. A docs reviewer (or whoever owns naming for the org) approves.
 3. The new service token is now legal everywhere.
@@ -178,7 +178,7 @@ already in the dictionary.
 You don't get to name 50 repos at once. The migration plan looks like:
 
 1. **Adopt the convention for new repos immediately.** Run
-   `teammate naming init` and require the check on every new repo's
+   `vigil naming init` and require the check on every new repo's
    first PR.
 2. **Add the legacy outliers to `[exceptions].allow`.** Names that
    pre-date the convention pass unchecked. The exception list is the
@@ -186,7 +186,7 @@ You don't get to name 50 repos at once. The migration plan looks like:
 3. **Rename in waves, by team.** Renames are cheap when GitHub redirects
    the old URL, expensive when they break a hardcoded URL in a
    deployment script. Rename one team at a time and grep for the old
-   name across the brain — `teammate ask "where is foo-bar referenced?"`
+   name across the brain — `vigil ask "where is foo-bar referenced?"`
    is the right tool.
 4. **Drop the exception line once renamed.** The exception list shrinks
    over time. When it's empty, you've finished migration.
@@ -229,13 +229,13 @@ is absent or unrecognized.
 The naming validator is the seatbelt for repo and service identifiers.
 For everything else, write its own seatbelt.
 
-## Integration with `teammate validate`
+## Integration with `vigil validate`
 
-The naming check is OFF by default in `teammate validate` to avoid
+The naming check is OFF by default in `vigil validate` to avoid
 surprising existing v0.6 users. Opt in two ways:
 
-1. CLI flag: `teammate validate --include-naming`.
-2. Per-repo TOML: in `.teammate/config.toml`,
+1. CLI flag: `vigil validate --include-naming`.
+2. Per-repo TOML: in `.vigil/config.toml`,
 
    ```toml
    [validate]
@@ -245,7 +245,7 @@ surprising existing v0.6 users. Opt in two ways:
 When enabled, the check walks every directory directly under `docs/`,
 `knowledge/`, and `.claude/skills/`, validating each name against the
 loaded convention. The naming check is skipped silently if
-`.teammate-naming.toml` is absent — naming is opt-in, not enforced.
+`.vigil-naming.toml` is absent — naming is opt-in, not enforced.
 
 See `docs/VALIDATE.md` for the full validate spec.
 
@@ -253,5 +253,5 @@ See `docs/VALIDATE.md` for the full validate spec.
 
 - `docs/VALIDATE.md` — the structural shape checker that the naming
   check plugs into.
-- `docs/ADOPT.md` — mid-project migration. `teammate adopt` does not
+- `docs/ADOPT.md` — mid-project migration. `vigil adopt` does not
   enforce naming today; the convention applies to repos, not files.

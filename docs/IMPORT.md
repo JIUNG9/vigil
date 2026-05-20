@@ -1,6 +1,6 @@
-# Bulk corpus import — `teammate import`
+# Bulk corpus import — `vigil import`
 
-`teammate import` is a family of CLI commands that pull content from Jira, Confluence, GitHub, and Slack into the brain repo's `archive/` directory, formatted as markdown with standardised YAML frontmatter.
+`vigil import` is a family of CLI commands that pull content from Jira, Confluence, GitHub, and Slack into the brain repo's `archive/` directory, formatted as markdown with standardised YAML frontmatter.
 
 Each importer is **idempotent** (re-running won't duplicate), **incremental** (uses a watermark per source), and **resumable** (a killed run picks up near where it died via checkpoints every 100 items).
 
@@ -9,7 +9,7 @@ Each importer is **idempotent** (re-running won't duplicate), **incremental** (u
 ## Install
 
 ```bash
-pip install 'claude-teammate[importers]'
+pip install 'vigil[importers]'
 ```
 
 This adds: `httpx`, `slack-sdk`, `pyyaml`.
@@ -27,7 +27,7 @@ brain/
 │   ├── confluence/<SPACE>/<page-id>-<slug>.md
 │   ├── github/<owner>/<repo>/{readme,issues,pull_requests}/
 │   └── slack/<channel>/YYYY/MM/DD-messages.md   # one daily rollup per channel
-└── .teammate-sync/
+└── .vigil-sync/
     └── state.json                          # watermark per source
 ```
 
@@ -70,7 +70,7 @@ export ATLASSIAN_EMAIL="you@your-org.com"
 export JIRA_BASE_URL="https://your-org.atlassian.net"
 export JIRA_PROJECTS="ENG,PLAT,INFRA"        # comma-separated project keys
 
-teammate import jira
+vigil import jira
 ```
 
 Uses the new `/rest/api/3/search/jql` endpoint (the legacy `/search` returns 410 Gone). Pagination via `nextPageToken`. `ORDER BY updated ASC` so watermark-resume works.
@@ -94,7 +94,7 @@ export ATLASSIAN_EMAIL="you@your-org.com"
 export CONFLUENCE_BASE_URL="https://your-org.atlassian.net/wiki"
 export CONFLUENCE_SPACES="DOCS,ENG"          # comma-separated space keys
 
-teammate import confluence
+vigil import confluence
 ```
 
 Uses `/rest/api/content/search` with CQL. **Quirks**:
@@ -115,7 +115,7 @@ export GITHUB_ORG="your-org"
 # optional:
 export GITHUB_REPOS="repo-1,repo-2"          # restrict to specific repos
 
-teammate import github
+vigil import github
 ```
 
 Pulls **READMEs + issues + pull requests + their comments** for every repo accessible to the PAT in `GITHUB_ORG`. No source code — that already lives in git.
@@ -141,7 +141,7 @@ export SLACK_BOT_TOKEN="xoxb-..."
 export SLACK_IMPORT_CHANNELS="devops,incidents"   # default: all channels bot is in
 export SLACK_HISTORY_DAYS="30"                    # initial backfill window
 
-teammate import slack
+vigil import slack
 ```
 
 The bot must be a member of channels it imports. Required Bot Token scopes: `channels:read`, `groups:read`, `channels:history`, `groups:history`, `users:read`.
@@ -163,8 +163,8 @@ archive/slack/devops/2026/05/14-messages.md:
 ## Run all four
 
 ```bash
-teammate import all              # jira → confluence → github → slack, in sequence
-teammate import all --dry-run    # render but don't write or advance watermark
+vigil import all              # jira → confluence → github → slack, in sequence
+vigil import all --dry-run    # render but don't write or advance watermark
 ```
 
 A failure in one importer doesn't stop the rest.
@@ -195,7 +195,7 @@ Audit after each import:
 grep -r "REDACTED" archive/ | wc -l
 ```
 
-Custom patterns can be added by passing `custom_patterns=` to `teammate.importers.redact.redact()`.
+Custom patterns can be added by passing `custom_patterns=` to `vigil.importers.redact.redact()`.
 
 ---
 
@@ -207,8 +207,8 @@ See `examples/k8s/import-cronjobs/` for full manifests.
 
 Key environment expectations:
 
-- A K8s Secret named `teammate-credentials` with keys: `github-pat`, `atlassian-token`, `slack-bot-token`
-- A ConfigMap `teammate-config` with a `brain_ref` key (typically `main`) — single control point for git ref across all CronJobs
+- A K8s Secret named `vigil-credentials` with keys: `github-pat`, `atlassian-token`, `slack-bot-token`
+- A ConfigMap `vigil-config` with a `brain_ref` key (typically `main`) — single control point for git ref across all CronJobs
 - A ServiceAccount with `batch/cronjobs:get` + `batch/jobs:list,create` permissions (already required by the event-listener)
 
 ---
@@ -216,13 +216,13 @@ Key environment expectations:
 ## Troubleshooting
 
 **`fatal: not in a git directory`** when the import script tries to git-add
-→ UID mismatch between init container (root) and main container (non-root). Add `chown -R 1000:1000 /etc/teammate/brain` in the init container, and `git config --global --add safe.directory $BRAIN` as the **first** command in the main container.
+→ UID mismatch between init container (root) and main container (non-root). Add `chown -R 1000:1000 /etc/vigil/brain` in the init container, and `git config --global --add safe.directory $BRAIN` as the **first** command in the main container.
 
 **Confluence returns `HTTP 400 Could not parse cql`**
 → Either the space keys aren't quoted, or the date isn't in `YYYY/MM/DD HH:MM` format. See the Confluence section above.
 
 **Jira returns `HTTP 410 Gone`**
-→ You're hitting the legacy `/rest/api/3/search` endpoint. Upgrade to `claude-teammate >= 0.11.1` which uses `/rest/api/3/search/jql`.
+→ You're hitting the legacy `/rest/api/3/search` endpoint. Upgrade to `vigil >= 0.11.1` which uses `/rest/api/3/search/jql`.
 
 **Importer never finishes within `activeDeadlineSeconds`**
 → Confirm `state.json` is being updated mid-run (every 100 items). If not, your CronJob may be wiping it via an emptyDir mount; persist it to the brain repo and commit.

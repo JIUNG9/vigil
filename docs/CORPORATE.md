@@ -2,7 +2,7 @@
 
 ## Why this doc exists
 
-`teammate` was built local-first, but the first real-world adopters all run
+`vigil` was built local-first, but the first real-world adopters all run
 inside corporate networks where the LLM is an *internal* Ollama mirror, egress
 runs through a TLS-inspecting proxy, and the laptop trusts a private CA. None
 of that requires a code change — it requires three knobs (host, proxy, CA
@@ -23,7 +23,7 @@ configuration in this doc.
 
 ## Configuring the internal Ollama host
 
-Per-repo `.teammate/config.toml`:
+Per-repo `.vigil/config.toml`:
 
 ```toml
 [llm]
@@ -53,8 +53,8 @@ for a copy-paste-ready starter.
 
 ## Proxy configuration
 
-`teammate` makes outbound HTTP calls via `httpx`. `httpx` reads `HTTPS_PROXY`,
-`HTTP_PROXY`, and `NO_PROXY` from the environment — no teammate-side
+`vigil` makes outbound HTTP calls via `httpx`. `httpx` reads `HTTPS_PROXY`,
+`HTTP_PROXY`, and `NO_PROXY` from the environment — no vigil-side
 configuration required.
 
 ```bash
@@ -64,7 +64,7 @@ export HTTP_PROXY="http://proxy.your-team.local:3128"
 export NO_PROXY="localhost,127.0.0.1,*.internal,*.your-team.local"
 ```
 
-If the proxy demands authentication, embed credentials in the URL — `teammate
+If the proxy demands authentication, embed credentials in the URL — `vigil
 doctor` redacts them on display:
 
 ```bash
@@ -104,23 +104,23 @@ When the laptop cannot reach PyPI:
 ```bash
 # On an internet-connected machine:
 mkdir wheels && cd wheels
-pip download claude-teammate
+pip download vigil
 
 # Copy the `wheels/` folder to the air-gapped laptop, then:
-pip install --no-index --find-links=./wheels claude-teammate
+pip install --no-index --find-links=./wheels vigil
 ```
 
-`teammate` itself is pure Python; the only transitive deps are `click`,
+`vigil` itself is pure Python; the only transitive deps are `click`,
 `pyyaml`, `rich`, `httpx`, and `sqlite-vec`. All wheel-only. No native
 compilation step.
 
-## Verifying with `teammate doctor`
+## Verifying with `vigil doctor`
 
-Once the env is set, run `teammate doctor` from inside a brain repo:
+Once the env is set, run `vigil doctor` from inside a brain repo:
 
 ```
-$ teammate doctor
-teammate doctor v0.3.1
+$ vigil doctor
+vigil doctor v0.3.1
 
 [PASS] config              source=repo  llm=ollama:llama3.2:3b  embedding=ollama:nomic-embed-text
 [PASS] brain               CLAUDE.md present at /home/alice/team-brain
@@ -131,7 +131,7 @@ teammate doctor v0.3.1
 [PASS] proxy               HTTPS_PROXY=http://***:***@proxy.your-team.local:3128
                            NO_PROXY=localhost,127.0.0.1,*.internal,*.your-team.local
                            SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
-[PASS] runtime             python=3.12.3  teammate=0.3.1
+[PASS] runtime             python=3.12.3  vigil=0.3.1
 
 OK
 ```
@@ -139,7 +139,7 @@ OK
 For machine-readable output (CI gate, monitoring):
 
 ```bash
-teammate doctor --json | jq .
+vigil doctor --json | jq .
 ```
 
 Exit codes: `0` all PASS, `1` any FAIL, `2` only WARNs.
@@ -148,23 +148,23 @@ Exit codes: `0` all PASS, `1` any FAIL, `2` only WARNs.
 
 - **DNS does not resolve `ollama.internal.your-team.local`** — VPN is not up,
   or split-horizon DNS isn't routing the internal zone through the corporate
-  resolver. `dig` from the same shell that ran `teammate doctor`; if it fails,
+  resolver. `dig` from the same shell that ran `vigil doctor`; if it fails,
   fix VPN / `/etc/resolv.conf` first.
 - **TLS handshake fails (`CERTIFICATE_VERIFY_FAILED`)** — your corporate CA is
   not in the trust store. Export `SSL_CERT_FILE=/etc/ssl/certs/ca-bundle.crt`
   (path varies by distro) and re-run.
 - **Proxy returns `407 Proxy Authentication Required`** — the proxy needs
   credentials. `export HTTPS_PROXY="http://user:pass@proxy.your-team.local:3128"`.
-  `teammate doctor` redacts the password in its output.
+  `vigil doctor` redacts the password in its output.
 - **Proxy returns `502 Bad Gateway` when targeting the internal mirror** —
   `NO_PROXY` is missing the internal zone. Add `*.your-team.local` (or whatever
   matches your hostname) to `NO_PROXY`.
 - **`Model not found` on the internal mirror** — the mirror has Ollama
-  running but hasn't pulled the models. `teammate doctor` prints the model
+  running but hasn't pulled the models. `vigil doctor` prints the model
   list; if `llama3.2:3b` or `nomic-embed-text` is missing, pull them on the
   mirror box: `ollama pull llama3.2:3b && ollama pull nomic-embed-text`.
 - **Index says version mismatch after a model swap** — expected. Run
-  `teammate index --rebuild` once after switching the embedding model.
+  `vigil index --rebuild` once after switching the embedding model.
 
 ## See also
 

@@ -8,9 +8,9 @@
 
 ## When to graduate
 
-Phase A is right while teammate is novel: it has no shared
+Phase A is right while vigil is novel: it has no shared
 infrastructure to operate, every engineer's brain stays sovereign on
-their laptop, and `teammate ask` works offline. The downsides only
+their laptop, and `vigil ask` works offline. The downsides only
 surface as the team grows:
 
 - Onboarding requires a local Ollama install, which trips up new
@@ -38,10 +38,10 @@ infra you can read in five minutes.
 
 ## Why EKS, not a single EC2
 
-A teammate-shared Ollama on a single EC2 instance would be cheaper
+A vigil-shared Ollama on a single EC2 instance would be cheaper
 and simpler. We chose EKS anyway:
 
-1. **Reuse what's already running.** Most teams that adopt teammate
+1. **Reuse what's already running.** Most teams that adopt vigil
    already have an EKS cluster. Adding one Deployment is cheaper
    operationally than spinning up an EC2, attaching a volume,
    patching it, and wiring up monitoring.
@@ -96,26 +96,26 @@ introduced a GPU node group".
 ## ArgoCD ApplicationSet pattern
 
 A single team can use the shipped `argocd/application.yaml`. A
-platform team running multiple teammate brains (one per team) wants
+platform team running multiple vigil brains (one per team) wants
 an ApplicationSet:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
-  name: teammate-ollama
+  name: vigil-ollama
   namespace: argocd
 spec:
   generators:
     - list:
         elements:
           - team: platform
-            namespace: teammate-platform
+            namespace: vigil-platform
           - team: data
-            namespace: teammate-data
+            namespace: vigil-data
   template:
     metadata:
-      name: 'teammate-ollama-{{ team }}'
+      name: 'vigil-ollama-{{ team }}'
     spec:
       project: default
       source:
@@ -145,7 +145,7 @@ Three sensible exposure patterns, in increasing order of risk:
 | Internet-facing LB | Anywhere | **Don't.** Ollama has no auth. |
 
 The default OSS config ships ClusterIP. Engineers run `kubectl
-port-forward -n teammate svc/ollama 11434:11434` and point teammate
+port-forward -n vigil svc/ollama 11434:11434` and point vigil
 at `http://localhost:11434`. That's a fine workflow if your team
 runs `kubectl` daily anyway.
 
@@ -176,10 +176,10 @@ end-to-end:
 
 ```bash
 # 1. Port-forward in one terminal:
-kubectl port-forward -n teammate svc/ollama 11434:11434
+kubectl port-forward -n vigil svc/ollama 11434:11434
 
-# 2. From another terminal, point teammate at it:
-cat <<'TOML' >> ~/.teammate/config.toml
+# 2. From another terminal, point vigil at it:
+cat <<'TOML' >> ~/.vigil/config.toml
 [llm]
 provider = "ollama"
 model    = "llama3.2:3b"
@@ -193,10 +193,10 @@ TOML
 
 # 3. Run the diagnostic:
 cd ~/team-brain
-teammate doctor
+vigil doctor
 ```
 
-`teammate doctor` should report:
+`vigil doctor` should report:
 
 ```
 [PASS] config             source=user  llm=ollama:llama3.2:3b  embedding=ollama:nomic-embed-text
@@ -214,14 +214,14 @@ into the PVC.
   GiB RSS comfortably, but a hot path with concurrent requests can
   spike. Bump `memory_limit` to `12Gi` if you see this.
 - **PVC stuck Pending.** Storage class `gp3` doesn't exist or has no
-  capacity in the AZ. `kubectl describe pvc -n teammate
+  capacity in the AZ. `kubectl describe pvc -n vigil
   ollama-models` will show events.
 - **Slow responses.** Check node CPU saturation. Other tenants on
   the same node can throttle Ollama. Either dedicate a node pool
   or move Ollama to a quieter pool.
 - **Init Job loops.** `registry.ollama.ai` has had occasional
   outages. The Job has `backoffLimit: 3` — manually re-run if
-  needed: `kubectl delete job -n teammate ollama-pull-models &&
+  needed: `kubectl delete job -n vigil ollama-pull-models &&
   kubectl apply -f k8s/ollama-init-job.yaml`.
 
 ## What's deliberately not here

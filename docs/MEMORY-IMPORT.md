@@ -1,4 +1,4 @@
-# `teammate memory-import` — pull team-relevant facts out of personal memory
+# `vigil memory-import` — pull team-relevant facts out of personal memory
 
 `~/.claude/` is where Claude Code stores per-user memory. Over time it
 accumulates facts that *are* team-relevant — service ownership, why
@@ -46,7 +46,7 @@ explicitly to pick the right project.
 
 ```bash
 # 1. From inside the team brain repo:
-teammate memory-import --memory-root ~/.claude --user alice
+vigil memory-import --memory-root ~/.claude --user alice
 # → wrote draft to <brain>/pending-imports/MEMORY-IMPORT-alice-2026-05-07.md
 
 # 2. Open the draft in your editor. For each entry, decide:
@@ -111,7 +111,7 @@ and after the command. It should be byte-identical.
 
 ## What v0.5 does NOT do
 
-There is no `teammate memory-import --apply`. v0.5 stops at the draft.
+There is no `vigil memory-import --apply`. v0.5 stops at the draft.
 "Apply" is the engineer's editor: open the brain page where the entry
 belongs (e.g. `knowledge/services.md` for an ownership fact), paste,
 commit. The diff in `git log` is the audit trail.

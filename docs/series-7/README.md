@@ -1,6 +1,20 @@
-# Series 7 — Building teammate: a DevSecOps Brain
+# Series 7 — Building Vigil (formerly *teammate*)
 
-Public mirror of the Medium series. All 7 articles, deep-technical, ~13,500 words total.
+> **2026-05-19 update**: the project formerly called *teammate* was renamed to **Vigil** at v5.0.0. The original 7-article series in this directory is preserved as a historical artifact of the v0.10 → v4.0.0 design. The current shipping content is the **consolidated 3-article series** under `nexus/medium-final/`.
+
+## v5 (current — 3 consolidated articles)
+
+| Part | Title | Approx words |
+|---|---|---|
+| 1 | **Building Vigil: the DevSecOps Command Center I built instead of buying PagerDuty + FireHydrant + Blameless** | ~2,000 |
+| 2 | **Vigil MTTD: adaptive SigNoz watchlists, P0–P3 auto-classification, bidirectional Slack sync** | ~1,600 |
+| 3 | **Vigil MTTR: the analysis workbench (no more war-room chat) — and a real Postgres-lock case study** | ~2,500 |
+
+Plus a companion CS-fundamentals piece: **kube-proxy vs Istio — a CS-fundamentals comparison** (~1,700 words).
+
+The consolidated articles are the live versions on Medium and the source of truth. The original 7-part series below documents the design history but the chat-centered framing of parts 1, 4, and 6 was explicitly cut in v5.
+
+## v4 history (preserved — original 7-part series under *teammate*)
 
 | Part | Title | Words |
 |---|---|---|

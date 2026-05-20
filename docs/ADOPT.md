@@ -1,12 +1,12 @@
-# `teammate adopt` — mid-project file migration
+# `vigil adopt` — mid-project file migration
 
-Most teams don't start with teammate. They have a `docs/` site, a `runbooks/`
+Most teams don't start with vigil. They have a `docs/` site, a `runbooks/`
 folder, a `wiki/` someone abandoned, and the inevitable root-level `NOTES.md`.
-`teammate adopt` walks the project, classifies what's already there, and
+`vigil adopt` walks the project, classifies what's already there, and
 fills gaps from the bundled team-brain template.
 
 It is the bridge between "we have markdown all over the place" and "we have
-a brain teammate can index."
+a brain vigil can index."
 
 ## What it does
 
@@ -25,13 +25,13 @@ a brain teammate can index."
 
 ```bash
 # Dry run (default) — writes MIGRATION-PLAN.md, touches nothing else.
-teammate adopt
+vigil adopt
 
 # Apply mode — copies ADD entries, writes MIGRATION.md summary.
-teammate adopt --apply
+vigil adopt --apply
 
 # Customize the include / exclude scope.
-teammate adopt --include legacy-docs/ --exclude wiki/
+vigil adopt --include legacy-docs/ --exclude wiki/
 ```
 
 ## Discovery rules
@@ -53,7 +53,7 @@ path you don't want adopt to scan.
 
 ### Default exclude
 
-- `.git`, `.venv`, `venv`, `node_modules`, `__pycache__`, `.teammate-cache`
+- `.git`, `.venv`, `venv`, `node_modules`, `__pycache__`, `.vigil-cache`
 - Hidden directories matching `^\.[a-z]+/` (except `.claude/` and `.github/`)
 - Author/personal output dirs: `articles/`, `oss/`, `applications/`,
   `portfolio/`, `interview-prep/`, `invest/`, `resume/`, `safe-poc/`
@@ -73,7 +73,7 @@ directory if a user runs adopt at `$HOME` by mistake.
 When the same path exists in both project and template, the project's version
 wins. We never auto-merge text — humans do that in their own commit.
 
-Every template file copied in via `--apply` gets a `teammate_template: true`
+Every template file copied in via `--apply` gets a `vigil_template: true`
 key merged into its YAML frontmatter so future tooling can spot which files
 came from the template versus team-authored content.
 
@@ -117,33 +117,33 @@ execute them in a reviewable commit.
 ```bash
 mkdir my-team-brain && cd my-team-brain
 git init -b main
-teammate adopt --apply         # populates everything from the template
-git add -A && git commit -m "init: team brain via teammate adopt"
+vigil adopt --apply         # populates everything from the template
+git add -A && git commit -m "init: team brain via vigil adopt"
 ```
 
 ### Existing project with scattered docs
 
 ```bash
 cd ~/work/legacy-platform-docs
-teammate adopt                 # dry-run, writes MIGRATION-PLAN.md
+vigil adopt                 # dry-run, writes MIGRATION-PLAN.md
 # Read the plan. Decide which moves are right.
 git mv wiki/payments-runbook.md docs/runbooks/payments.md
 git commit -m "docs: move wiki runbook into docs/runbooks/"
-teammate adopt --apply         # now fill template gaps
+vigil adopt --apply         # now fill template gaps
 ```
 
 ### CI usage
 
-The bundled `brain-ci.yml` runs `teammate adopt --dry-run` on every PR and
+The bundled `brain-ci.yml` runs `vigil adopt --dry-run` on every PR and
 posts the plan as a PR comment. Reviewers see, in the PR conversation,
 exactly what would change if the team ran `--apply`.
 
 ## Exit codes
 
-`teammate adopt` exits 0 on success, 1 on failure (e.g. dirty git tree under
+`vigil adopt` exits 0 on success, 1 on failure (e.g. dirty git tree under
 `--apply`, or filesystem error during copy).
 
 ## See also
 
-- `teammate validate` — `docs/VALIDATE.md`
+- `vigil validate` — `docs/VALIDATE.md`
 - The bundled template — `templates/team-brain-skeleton/`

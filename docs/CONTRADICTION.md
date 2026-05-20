@@ -4,7 +4,7 @@
 
 ## What this is
 
-When `teammate ask` retrieves the top-k chunks for a query, two of them
+When `vigil ask` retrieves the top-k chunks for a query, two of them
 might say opposite things. A naive synthesis-by-LLM path will happily
 blend "use PG13" and "use PG16" into "use PG14" — a half-truth that
 costs you at 3 AM. The contradiction detector surfaces the conflict
@@ -101,7 +101,7 @@ laptop; tunable if you're paying per token.
 ## Configuration
 
 ```toml
-# .teammate/config.toml
+# .vigil/config.toml
 [contradiction]
 use_llm_judge = false   # default — Phase 1 only
 score_floor   = 0.5     # only pair chunks at or above this score
@@ -160,7 +160,7 @@ caps cost predictably.
 
 ## Surfaced where
 
-The contradiction prefix appears at the top of `teammate ask` output
+The contradiction prefix appears at the top of `vigil ask` output
 (before the LLM-synthesised answer), and is visible to MCP clients
 through the same `answer()` path. It's also recorded in the audit log
 (see `docs/CONFIDENCE.md`):

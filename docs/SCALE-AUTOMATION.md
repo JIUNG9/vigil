@@ -1,6 +1,6 @@
 # SCALE-AUTOMATION
 
-> v0.10 ships four new agent routines and `teammate brain-pulse` — the
+> v0.10 ships four new agent routines and `vigil brain-pulse` — the
 > set of moves that lets the team brain stay accurate at 100+ engineers
 > without a single daemon.
 
@@ -48,7 +48,7 @@ totally different runners with no code change.
 
 ```
 ┌─────────────────────┐    event    ┌──────────────────┐    artifact    ┌─────────┐
-│ invalidations repo  │ ─────────►  │ teammate routine │ ─────────────► │ runner  │
+│ invalidations repo  │ ─────────►  │ vigil routine │ ─────────────► │ runner  │
 │ (CloudTrail / TF)   │             │  (read-only)     │                │ (gh/PD) │
 └─────────────────────┘             └──────────────────┘                └─────────┘
                                             ▲                                  │
@@ -92,7 +92,7 @@ totally different runners with no code change.
 - **Trigger.** `pull_request` (opened / synchronize).
 - **Inputs.** PR file list (and optional patches). The routine
   extracts AWS resource ids from each changed file using the same
-  regex that backs `teammate ask`'s invalidation banner, walks the
+  regex that backs `vigil ask`'s invalidation banner, walks the
   brain looking for pages that mention any of those resources, and
   cross-references with recent invalidations.
 - **Output.** `out_dir/pr-comments/pr-<number>.md` — a markdown
@@ -116,7 +116,7 @@ totally different runners with no code change.
   `knowledge/people.md`, and **always opens it as a draft**. No
   auto-merge, ever.
 
-## 4. `teammate brain-pulse` — the engineer's morning ritual
+## 4. `vigil brain-pulse` — the engineer's morning ritual
 
 ```text
 Brain Pulse — last 24h
@@ -145,7 +145,7 @@ Today's recommended actions:
   1. Verify docs/runbooks/auth-deploy.md reflects new state of aws_vpc.vpc-abc123
   2. Review staged draft auth-deploy-inv-abc.md for docs/runbooks/auth-deploy.md
 
-Run `teammate ask "..."` to dig deeper.
+Run `vigil ask "..."` to dig deeper.
 ─────────────────────────────────────────────
 ```
 
@@ -188,7 +188,7 @@ agent staging dir present, it emits an empty report and exits 0.
 |-----------------------|-------------|--------------|--------|
 | Agent routines        | brain repo, invalidations repo, `git log` | `out_dir/` only | none |
 | Runner (cron / `/schedule`) | `out_dir/` | github / slack / email APIs | yes |
-| `teammate brain-pulse` | brain repo, invalidations repo, `out_dir/` | none | none |
+| `vigil brain-pulse` | brain repo, invalidations repo, `out_dir/` | none | none |
 
 The split is the same one v0.5 introduced and v0.8 kept: the agent has
 read-only on the brain and write-only on the staging dir. The runner

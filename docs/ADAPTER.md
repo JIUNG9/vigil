@@ -14,7 +14,7 @@ Without a translation layer the engineer faces a lose-lose:
 
 - Restructure all their personal notes to match the team — the kind of
   yak-shave that gets postponed forever.
-- Accept that `teammate` doesn't see anything outside the brain repo.
+- Accept that `vigil` doesn't see anything outside the brain repo.
 
 The adapter is the seam. One file per laptop, no code changes.
 
@@ -35,24 +35,24 @@ so building the full design would be a strawman. We ship the load-bearing
 
 ## File location and precedence
 
-The adapter file is named `.teammate-adapter.toml` and may live at one
+The adapter file is named `.vigil-adapter.toml` and may live at one
 of two locations:
 
 | Path | Role |
 |---|---|
-| `~/.teammate-adapter.toml` | Per-engineer config. Wins on conflict. |
-| `<brain-root>/.teammate-adapter.toml` | Team-shipped fallback. Optional. |
+| `~/.vigil-adapter.toml` | Per-engineer config. Wins on conflict. |
+| `<brain-root>/.vigil-adapter.toml` | Team-shipped fallback. Optional. |
 
 When both exist, the home file's keys override the brain file's keys
 section by section: `[paths]` rules are unioned with home winning on
 collision; the home `personal_overrides_team` list replaces the brain's
-list outright. Diagnostic: `teammate adapter show` prints which source
+list outright. Diagnostic: `vigil adapter show` prints which source
 the effective config came from (`home` / `brain` / `merged`).
 
 ## Schema
 
 ```toml
-# ~/.teammate-adapter.toml
+# ~/.vigil-adapter.toml
 [paths]
 "~/notes/runbooks/*.md" = "docs/runbooks/{}"
 "~/wiki/*.md"           = "docs/wiki/{}"
@@ -146,15 +146,15 @@ them.
 
 ```bash
 # show the effective adapter (or "no adapter configured")
-teammate adapter show
+vigil adapter show
 
-# write a starter file (~/.teammate-adapter.toml by default)
-teammate adapter init                  # writes to home
-teammate adapter init --scope brain    # writes to <brain-root>
-teammate adapter init --force          # overwrite existing
+# write a starter file (~/.vigil-adapter.toml by default)
+vigil adapter init                  # writes to home
+vigil adapter init --scope brain    # writes to <brain-root>
+vigil adapter init --force          # overwrite existing
 
 # check that every [paths] rule still matches real files
-teammate adapter validate
+vigil adapter validate
 ```
 
 `adapter init` looks at `~` for common personal-notes directories
@@ -176,7 +176,7 @@ This is read-only: it doesn't touch the brain or the adapter file.
 Add one when:
 
 - Your personal markdown lives outside the team-brain repo and you'd
-  benefit from `teammate ask` reaching into it (future v0.7 work, not
+  benefit from `vigil ask` reaching into it (future v0.7 work, not
   v0.6).
 - Your `CLAUDE.md` has a section you'd be happy to hide from the team
   but want active locally (editor config, personal vocabulary aliases).
@@ -191,7 +191,7 @@ Skip it when:
 
 - **Don't translate company-confidential paths into the team brain.** The
   adapter is a per-engineer overlay; it never publishes anything. But the
-  resulting paths flow into local audit logs and `teammate ask`. If a
+  resulting paths flow into local audit logs and `vigil ask`. If a
   personal path is sensitive, leave it outside the adapter's reach.
 - **Don't use it as a search-replace for vocabulary.** That's a v0.7
   feature; don't try to abuse `[paths]` to rewrite text content. It maps

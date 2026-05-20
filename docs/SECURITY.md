@@ -1,6 +1,6 @@
-# Threat Model — teammate signed compliance attestations
+# Threat Model — vigil signed compliance attestations
 
-The PDF attestation produced by `teammate score --sign` is signed using
+The PDF attestation produced by `vigil score --sign` is signed using
 [sigstore](https://www.sigstore.dev/) keyless: a Fulcio-issued certificate
 bound to a GitHub OIDC identity, with the signing event recorded in the
 public Rekor transparency log.
@@ -33,7 +33,7 @@ public Rekor transparency log.
 ## Verification
 
 For an auditor who has the PDF, the `.sig`, and the `.crt` produced by
-`teammate score --sign`:
+`vigil score --sign`:
 
 ```bash
 pip install sigstore
@@ -48,7 +48,7 @@ The expected `--certificate-identity` for the example artifact shipped in
 this repo is:
 
 ```
-https://github.com/JIUNG9/teammate/.github/workflows/sign-example.yml@refs/heads/main
+https://github.com/JIUNG9/vigil/.github/workflows/sign-example.yml@refs/heads/main
 ```
 
 For attestations produced by a team's own `--sign` flow, the identity
@@ -75,7 +75,7 @@ signing event. The CLI handles this transparently.
 
 ## What is intentionally out of scope
 
-- **Hardware attestation.** teammate runs on the user's laptop. The
+- **Hardware attestation.** vigil runs on the user's laptop. The
   signed PDF doesn't claim anything about the integrity of the execution
   environment.
 - **Replay protection.** Two identical score runs at the same timestamp

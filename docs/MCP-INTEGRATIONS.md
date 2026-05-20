@@ -1,6 +1,6 @@
 # MCP integrations — Confluence, Jira, Slack, Web
 
-> Status: shipped in v0.8. Four sync routines + the `teammate sync`
+> Status: shipped in v0.8. Four sync routines + the `vigil sync`
 > CLI. The agent never auto-merges; humans review every staged file.
 
 ## The thesis
@@ -20,8 +20,8 @@ a human turns those drafts into real `docs/runbooks/...` or
 This is the same trust model the v0.5 colleague-agent shipped:
 **routines stage drafts, the runner stages PRs, humans review.** The
 agent itself holds no credentials. The runner — Anthropic-cloud
-`/schedule`, a self-hosted GitHub Actions cron, or a teammate engineer
-running `teammate sync` from the CLI — is the only thing with scoped
+`/schedule`, a self-hosted GitHub Actions cron, or a vigil engineer
+running `vigil sync` from the CLI — is the only thing with scoped
 tokens to Atlassian / Slack / web sources.
 
 ## What ships
@@ -40,8 +40,8 @@ rewritten and its mtime is preserved.
 
 ## Configuration schema
 
-All four routines read from `.teammate/config.toml` under
-`[sync.<name>]`. Adjacent CLI invocations like `teammate sync
+All four routines read from `.vigil/config.toml` under
+`[sync.<name>]`. Adjacent CLI invocations like `vigil sync
 confluence` consume the matching section; the `[sync]` keys are also
 free-form so the runner / `/schedule` config can pass extras the OSS
 schema doesn't model.
@@ -120,16 +120,16 @@ dot boundary so substring smuggling can't bypass the allowlist.
 
 ```bash
 # Run a routine locally:
-teammate sync confluence
-teammate sync jira
-teammate sync slack
-teammate sync web
+vigil sync confluence
+vigil sync jira
+vigil sync slack
+vigil sync web
 
 # Drop staged drafts somewhere else:
-teammate sync confluence --out-dir /tmp/incoming
+vigil sync confluence --out-dir /tmp/incoming
 
 # Show what would happen, write nothing:
-teammate sync web --dry-run
+vigil sync web --dry-run
 ```
 
 Each subcommand reads the matching `[sync.<name>]` section, dispatches
@@ -151,7 +151,7 @@ plus the artifacts list. The summary includes per-source counts:
 │   - httpx / WebFetch       ← public HTTP                    │
 │                                                             │
 │  Stages files via:                                          │
-│    teammate sync <routine>  /  agent runner dispatch        │
+│    vigil sync <routine>  /  agent runner dispatch        │
 └──────────────────────────┬──────────────────────────────────┘
                            │ pre-resolved records or URLs
                            ▼
@@ -193,7 +193,7 @@ incremental cost is dominated by the MCP server, not the agent.
 
 ## How to add a new sync routine
 
-1. Add `src/teammate/agent/<source>_sync.py`. Mirror the pattern in
+1. Add `src/vigil/agent/<source>_sync.py`. Mirror the pattern in
    `confluence_sync.py`: a single `run(config, *, today=None,
    fetcher=None)` function, a per-routine output directory under
    `out_dir/<source>-imports/`, frontmatter that records the source's
@@ -206,7 +206,7 @@ incremental cost is dominated by the MCP server, not the agent.
    re-sync → mtime preserved; injected fetcher captures the URL.
 
 The shared HTML→markdown converter lives in
-`teammate/agent/_sync_common.py`. Hand-rolled, regex-driven, no
+`vigil/agent/_sync_common.py`. Hand-rolled, regex-driven, no
 BeautifulSoup. If your new source needs richer parsing, expand the
 converter rather than depending on a third-party library — the
 constraint is "OSS install must work without extras".
@@ -215,10 +215,10 @@ constraint is "OSS install must work without extras".
 
 - **Not bidirectional.** Edits in the team-brain markdown do not flow
   back to Confluence / Jira / Slack. The original system stays
-  authoritative; teammate is a downstream cache for retrieval.
+  authoritative; vigil is a downstream cache for retrieval.
 - **Not real-time.** Sync is a slow loop — typically weekly via
-  `/schedule`, on demand via `teammate sync`. Real-time would invite
+  `/schedule`, on demand via `vigil sync`. Real-time would invite
   the credential-trust problems we explicitly avoided.
 - **Not a search index over upstream.** The synced files live in the
-  brain repo and feed the regular sqlite-vec index. `teammate ask`
+  brain repo and feed the regular sqlite-vec index. `vigil ask`
   treats them like any other markdown.
