@@ -1,0 +1,63 @@
+# =============================================================================
+# Create a GitHub Release when a vX.Y.Z tag is pushed.
+#
+# Notes body is extracted from CHANGELOG.md — the section under the matching
+# ## [X.Y.Z] heading. Falls back to "See CHANGELOG.md" if no section found.
+#
+# This runs alongside publish.yml; both fire on the same tag push.
+# =============================================================================
+name: Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-*"
+
+permissions:
+  contents: write   # required to create the Release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract release notes from CHANGELOG
+        id: notes
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          # Pull the section between "## [VERSION]" and the next "## [" heading.
+          NOTES=$(awk -v v="$VERSION" '
+            /^## \[/ {
+              if (in_section) exit
+              if (index($0, "[" v "]") > 0) { in_section = 1; next }
+            }
+            in_section { print }
+          ' CHANGELOG.md)
+          if [ -z "$NOTES" ]; then
+            NOTES="Release $VERSION. See CHANGELOG.md for the full list of changes."
+          fi
+          # Save multiline output
+          {
+            echo "body<<EOF"
+            echo "$NOTES"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          # Detect pre-release suffix
+          if [[ "$GITHUB_REF_NAME" =~ -(alpha|beta|rc) ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body: ${{ steps.notes.outputs.body }}
+          prerelease: ${{ steps.notes.outputs.prerelease }}
+          generate_release_notes: false

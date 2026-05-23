@@ -65,7 +65,7 @@ You're setting up the brain for your team. You'll do this once for the org.
 **1. Install Vigil.**
 
 ```bash
-pip install vigil
+pip install vigil-devsecops
 # or, if your team already uses Claude Code's plugin marketplace:
 claude plugin install JIUNG9/vigil
 ```
@@ -145,7 +145,7 @@ curl -fsSL https://claude.ai/install.sh | sh
 **2. Install Vigil.**
 
 ```bash
-pip install vigil
+pip install vigil-devsecops
 # or via the Claude Code plugin marketplace:
 claude plugin install JIUNG9/vigil
 ```

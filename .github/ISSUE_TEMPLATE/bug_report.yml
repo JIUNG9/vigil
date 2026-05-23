@@ -1,0 +1,79 @@
+name: Bug report
+description: Something is not working as documented.
+title: "[bug] "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report. The more detail you can give, the faster we can help.
+
+        **Before filing:** please search [existing issues](https://github.com/JIUNG9/vigil/issues?q=is%3Aissue) — the bug may already be reported.
+
+  - type: input
+    id: version
+    attributes:
+      label: Vigil version
+      description: Output of `vigil --version`, or the commit SHA if running from source.
+      placeholder: "v5.0.0"
+    validations:
+      required: true
+
+  - type: input
+    id: python
+    attributes:
+      label: Python version
+      description: Output of `python --version`.
+      placeholder: "3.12.4"
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: "macOS 15.1 / Ubuntu 24.04 / etc."
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of what you observed.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction steps
+      description: |
+        Step-by-step. If the bug requires a specific brain repo or config, include the smallest version of that.
+      placeholder: |
+        1. Run `vigil scaffold /tmp/test-brain`
+        2. Run `vigil index`
+        3. Observe error: ...
+      render: bash
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or error output
+      description: Paste the actual error message and surrounding context. Redact anything sensitive.
+      render: shell
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Optional. Workarounds you tried, hunches about the cause, screenshots, etc.

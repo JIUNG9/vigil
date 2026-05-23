@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or general discussion
+    url: https://github.com/JIUNG9/vigil/discussions
+    about: For usage questions, ideas, or design discussions, please open a Discussion rather than an issue.
+  - name: Security report
+    url: https://github.com/JIUNG9/vigil/security/advisories/new
+    about: For potential security vulnerabilities, please use a private security advisory. Do NOT open a public issue.
