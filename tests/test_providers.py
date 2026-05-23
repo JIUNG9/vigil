@@ -6,14 +6,14 @@ import warnings
 
 
 def test_provider_abcs_are_importable():
-    from teammate.providers import EmbeddingProvider, LLMProvider
+    from vigil.providers import EmbeddingProvider, LLMProvider
 
     assert LLMProvider is not None
     assert EmbeddingProvider is not None
 
 
 def test_ollama_provider_implements_both_abcs():
-    from teammate.providers import EmbeddingProvider, LLMProvider, OllamaProvider
+    from vigil.providers import EmbeddingProvider, LLMProvider, OllamaProvider
 
     assert issubclass(OllamaProvider, LLMProvider)
     assert issubclass(OllamaProvider, EmbeddingProvider)
@@ -21,7 +21,7 @@ def test_ollama_provider_implements_both_abcs():
 
 def test_ollama_provider_is_up_returns_false_on_bogus_host(monkeypatch):
     """No real Ollama running on a bogus port — must return False, never raise."""
-    from teammate.providers import OllamaProvider
+    from vigil.providers import OllamaProvider
 
     p = OllamaProvider(host="http://127.0.0.1:1")  # nothing listens on port 1
     assert p.is_up() is False
@@ -31,7 +31,7 @@ def test_ollama_provider_is_up_returns_false_on_connect_error(monkeypatch):
     """Mock httpx.get to raise ConnectError; is_up must swallow it."""
     import httpx
 
-    from teammate.providers import OllamaProvider
+    from vigil.providers import OllamaProvider
 
     def _raise(*_a, **_kw):
         raise httpx.ConnectError("boom")
@@ -42,53 +42,53 @@ def test_ollama_provider_is_up_returns_false_on_connect_error(monkeypatch):
 
 
 def test_ollama_provider_dim_default_is_768():
-    from teammate.providers import OllamaProvider
+    from vigil.providers import OllamaProvider
 
     p = OllamaProvider()
     assert p.dim == 768
 
 
 def test_ollama_provider_dim_override():
-    from teammate.providers import OllamaProvider
+    from vigil.providers import OllamaProvider
 
     p = OllamaProvider(dim=1536)
     assert p.dim == 1536
 
 
 def test_ollama_provider_model_id_returns_llm_model():
-    from teammate.providers import OllamaProvider
+    from vigil.providers import OllamaProvider
 
     p = OllamaProvider(llm_model="llama3.2:3b")
     assert p.model_id == "llama3.2:3b"
 
 
 def test_load_llm_provider_returns_none_for_unknown():
-    from teammate.config import ProviderConfig
-    from teammate.providers import load_llm_provider
+    from vigil.config import ProviderConfig
+    from vigil.providers import load_llm_provider
 
     cfg = ProviderConfig(provider="some-future-thing", model="x")
     assert load_llm_provider(cfg) is None
 
 
 def test_load_llm_provider_returns_none_for_explicit_none():
-    from teammate.config import ProviderConfig
-    from teammate.providers import load_llm_provider
+    from vigil.config import ProviderConfig
+    from vigil.providers import load_llm_provider
 
     cfg = ProviderConfig(provider="none", model="")
     assert load_llm_provider(cfg) is None
 
 
 def test_load_embedding_provider_returns_none_for_unknown():
-    from teammate.config import ProviderConfig
-    from teammate.providers import load_embedding_provider
+    from vigil.config import ProviderConfig
+    from vigil.providers import load_embedding_provider
 
     cfg = ProviderConfig(provider="some-future-thing", model="x")
     assert load_embedding_provider(cfg) is None
 
 
 def test_load_llm_provider_builds_ollama():
-    from teammate.config import ProviderConfig
-    from teammate.providers import OllamaProvider, load_llm_provider
+    from vigil.config import ProviderConfig
+    from vigil.providers import OllamaProvider, load_llm_provider
 
     cfg = ProviderConfig(
         provider="ollama",
@@ -120,7 +120,7 @@ def test_back_compat_shim_still_exposes_ollama_client():
 
 def test_back_compat_exceptions_are_aliases():
     """OllamaUnavailable/OllamaError must alias the new ProviderUnavailable/Error."""
-    from teammate.providers import (
+    from vigil.providers import (
         OllamaError,
         OllamaUnavailable,
         ProviderError,

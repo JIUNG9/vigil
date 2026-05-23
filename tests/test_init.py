@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from teammate.brain import Brain
-from teammate.init import scaffold, step_brain, step_pre_push
+from vigil.brain import Brain
+from vigil.init import scaffold, step_brain, step_pre_push
 
 
 def test_scaffold_creates_template_files(tmp_path: Path):

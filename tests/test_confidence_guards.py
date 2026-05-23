@@ -10,7 +10,7 @@ import sys
 from collections.abc import Iterator
 from pathlib import Path
 
-from teammate.confidence import (
+from vigil.confidence import (
     DEFAULT_ACTION_FLOORS,
     AuditRecord,
     append_audit,
@@ -21,13 +21,13 @@ from teammate.confidence import (
     render_below_threshold_message,
     resolve_action_floor,
 )
-from teammate.config import (
+from vigil.config import (
     ConfidenceConfig,
     load_config,
 )
-from teammate.providers.base import LLMProvider
-from teammate.rag.ask import answer
-from teammate.rag.index import _SCHEMA  # noqa: WPS437
+from vigil.providers.base import LLMProvider
+from vigil.rag.ask import answer
+from vigil.rag.index import _SCHEMA  # noqa: WPS437
 
 # ---------- Guard 4: action floor table ----------
 

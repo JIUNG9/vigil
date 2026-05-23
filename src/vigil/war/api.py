@@ -272,7 +272,7 @@ async def slack_command(request: Request):
             declared_by=user,
             skip_triage=True,
         )
-        return _slack_response(f":rotating_light: *Incident {inc.id} created* — state: ACTIVE. War-room: <https://chat.vigil.placen.net/war/{inc.id}|open>")
+        return _slack_response(f":rotating_light: *Incident {inc.id} created* — state: ACTIVE. War-room: <https://chat.vigil.example.com/war/{inc.id}|open>")
 
     if command == "/war-report":
         from vigil.war.alert_bridge import create_incident, IncidentSource

@@ -9,7 +9,7 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from teammate.providers.base import EmbeddingProvider, LLMProvider
+from vigil.providers.base import EmbeddingProvider, LLMProvider
 
 # ---------- test doubles ----------
 
@@ -116,7 +116,7 @@ def _stamp_index(brain_root: Path, model: str = "nomic-embed-text",
 
 
 def _invoke_doctor(brain_root: Path, monkeypatch, *args: str) -> object:
-    from teammate.cli import doctor
+    from vigil.cli import doctor
 
     monkeypatch.chdir(brain_root)
     runner = CliRunner()

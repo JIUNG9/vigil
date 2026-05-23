@@ -15,8 +15,8 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from teammate.cli import main as cli_main
-from teammate.memory_import import (
+from vigil.cli import main as cli_main
+from vigil.memory_import import (
     PERSONAL,
     REFERENCE,
     TEAM_FACT,

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from teammate.brain import Brain, BrainEntry
+from vigil.brain import Brain, BrainEntry
 
 
 def test_brain_exists_when_claude_md_present(populated_brain: Path):

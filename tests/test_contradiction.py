@@ -4,14 +4,14 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 
-from teammate.contradiction import (
+from vigil.contradiction import (
     KIND_PARAMETER,
     KIND_PROCEDURE,
     Contradiction,
     detect_contradictions,
     render_contradiction_prefix,
 )
-from teammate.rag.ask import Hit
+from vigil.rag.ask import Hit
 
 
 def _hit(path: str, text: str, score: float = 0.7) -> Hit:
@@ -238,9 +238,9 @@ def test_answer_emits_contradiction_prefix(tmp_path, monkeypatch):
     """The ``answer()`` function emits the prefix when contradictions are found."""
     import sqlite3
 
-    from teammate.providers.base import LLMProvider
-    from teammate.rag.ask import answer
-    from teammate.rag.index import _SCHEMA  # noqa: WPS437 — direct DDL is fine for tests
+    from vigil.providers.base import LLMProvider
+    from vigil.rag.ask import answer
+    from vigil.rag.index import _SCHEMA  # noqa: WPS437 — direct DDL is fine for tests
 
     db = tmp_path / "vault.sqlite"
     conn = sqlite3.connect(str(db))
@@ -277,7 +277,7 @@ def test_answer_emits_contradiction_prefix(tmp_path, monkeypatch):
         def generate(self, prompt, system=None, *, stream=True):
             yield "Sounds good [docs/a.md]\n"
 
-    from teammate.config import ContradictionConfig
+    from vigil.config import ContradictionConfig
 
     text = "".join(
         answer(

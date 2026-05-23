@@ -7,8 +7,8 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from teammate.cli import main as cli_main
-from teammate.memory_export import export_for_handover, write_handover
+from vigil.cli import main as cli_main
+from vigil.memory_export import export_for_handover, write_handover
 
 
 def _seed_memory(memory_root: Path) -> None:

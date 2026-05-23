@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from teammate.providers.base import EmbeddingProvider, LLMProvider
+from vigil.providers.base import EmbeddingProvider, LLMProvider
 
 
 class FakeEmbedder(EmbeddingProvider):
@@ -64,7 +64,7 @@ def _seed_brain(tmp_path: Path) -> Path:
 def test_first_index_stamps_meta(tmp_path: Path):
     import sqlite3
 
-    from teammate.rag.index import index_paths
+    from vigil.rag.index import index_paths
 
     md = _seed_brain(tmp_path)
     cache = tmp_path / ".teammate-cache"
@@ -86,7 +86,7 @@ def test_first_index_stamps_meta(tmp_path: Path):
 
 
 def test_second_index_with_same_provider_succeeds(tmp_path: Path):
-    from teammate.rag.index import index_paths
+    from vigil.rag.index import index_paths
 
     md = _seed_brain(tmp_path)
     cache = tmp_path / ".teammate-cache"
@@ -100,7 +100,7 @@ def test_second_index_with_same_provider_succeeds(tmp_path: Path):
 
 
 def test_second_index_with_different_provider_raises(tmp_path: Path):
-    from teammate.rag.index import IndexVersionMismatch, index_paths
+    from vigil.rag.index import IndexVersionMismatch, index_paths
 
     md = _seed_brain(tmp_path)
     cache = tmp_path / ".teammate-cache"
@@ -117,7 +117,7 @@ def test_second_index_with_different_provider_raises(tmp_path: Path):
 
 
 def test_different_dim_raises(tmp_path: Path):
-    from teammate.rag.index import IndexVersionMismatch, index_paths
+    from vigil.rag.index import IndexVersionMismatch, index_paths
 
     md = _seed_brain(tmp_path)
     cache = tmp_path / ".teammate-cache"
@@ -130,7 +130,7 @@ def test_different_dim_raises(tmp_path: Path):
 def test_rebuild_wipes_and_restamps(tmp_path: Path):
     import sqlite3
 
-    from teammate.rag.index import index_paths
+    from vigil.rag.index import index_paths
 
     md = _seed_brain(tmp_path)
     cache = tmp_path / ".teammate-cache"
@@ -151,7 +151,7 @@ def test_rebuild_wipes_and_restamps(tmp_path: Path):
 
 
 def test_open_index_validates_stamp(tmp_path: Path):
-    from teammate.rag.index import IndexVersionMismatch, index_paths, open_index
+    from vigil.rag.index import IndexVersionMismatch, index_paths, open_index
 
     md = _seed_brain(tmp_path)
     cache = tmp_path / ".teammate-cache"
@@ -172,7 +172,7 @@ def test_open_index_validates_stamp(tmp_path: Path):
 
 def test_no_embedder_skips_stamp_check(tmp_path: Path):
     """Indexing without an embedder doesn't stamp; subsequent indexes are unconstrained."""
-    from teammate.rag.index import index_paths
+    from vigil.rag.index import index_paths
 
     md = _seed_brain(tmp_path)
     cache = tmp_path / ".teammate-cache"

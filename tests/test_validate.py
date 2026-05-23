@@ -7,8 +7,8 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from teammate.cli import main as cli_main
-from teammate.validate import (
+from vigil.cli import main as cli_main
+from vigil.validate import (
     FAIL,
     PASS,
     WARN,

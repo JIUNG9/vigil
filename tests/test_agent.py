@@ -19,10 +19,10 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from teammate.agent import RoutineConfig, RoutineResult
-from teammate.agent.base import FAIL, OK, WARN
-from teammate.agent.runner import list_routines, run_routine
-from teammate.cli import main as cli_main
+from vigil.agent import RoutineConfig, RoutineResult
+from vigil.agent.base import FAIL, OK, WARN
+from vigil.agent.runner import list_routines, run_routine
+from vigil.cli import main as cli_main
 
 
 def _seed_brain(root: Path) -> None:
@@ -96,7 +96,7 @@ def test_orphan_triage_classifies_runbook_filename(tmp_path: Path):
     _seed_brain(tmp_path)
     (tmp_path / "stray-runbook.md").write_text("# rb\n", encoding="utf-8")
     out = tmp_path / "agent-out"
-    from teammate.agent.orphan_triage import run as triage_run
+    from vigil.agent.orphan_triage import run as triage_run
     result = triage_run(
         RoutineConfig(brain_root=tmp_path, out_dir=out),
         today=date(2026, 5, 7),
@@ -111,7 +111,7 @@ def test_orphan_triage_classifies_draft_filename(tmp_path: Path):
     _seed_brain(tmp_path)
     (tmp_path / "scratch-notes.md").write_text("# s\n", encoding="utf-8")
     out = tmp_path / "agent-out"
-    from teammate.agent.orphan_triage import run as triage_run
+    from vigil.agent.orphan_triage import run as triage_run
     result = triage_run(
         RoutineConfig(brain_root=tmp_path, out_dir=out),
         today=date(2026, 5, 7),
@@ -125,7 +125,7 @@ def test_orphan_triage_classifies_decision_filename(tmp_path: Path):
     _seed_brain(tmp_path)
     (tmp_path / "ADR-007.md").write_text("# adr\n", encoding="utf-8")
     out = tmp_path / "agent-out"
-    from teammate.agent.orphan_triage import run as triage_run
+    from vigil.agent.orphan_triage import run as triage_run
     result = triage_run(
         RoutineConfig(brain_root=tmp_path, out_dir=out),
         today=date(2026, 5, 7),
@@ -137,7 +137,7 @@ def test_orphan_triage_classifies_decision_filename(tmp_path: Path):
 def test_orphan_triage_filename_includes_date(tmp_path: Path):
     _seed_brain(tmp_path)
     out = tmp_path / "agent-out"
-    from teammate.agent.orphan_triage import run as triage_run
+    from vigil.agent.orphan_triage import run as triage_run
     result = triage_run(
         RoutineConfig(brain_root=tmp_path, out_dir=out),
         today=date(2026, 5, 7),
@@ -149,7 +149,7 @@ def test_orphan_triage_proposes_issue_body(tmp_path: Path):
     _seed_brain(tmp_path)
     (tmp_path / "stray.md").write_text("# stray\n", encoding="utf-8")
     out = tmp_path / "agent-out"
-    from teammate.agent.orphan_triage import run as triage_run
+    from vigil.agent.orphan_triage import run as triage_run
     result = triage_run(
         RoutineConfig(brain_root=tmp_path, out_dir=out),
         today=date(2026, 5, 7),
@@ -164,7 +164,7 @@ def test_orphan_triage_never_mutates_brain(tmp_path: Path):
     (tmp_path / "stray.md").write_text("# stray\n", encoding="utf-8")
     out = tmp_path / "agent-out"
     before = sorted(p.name for p in tmp_path.iterdir())
-    from teammate.agent.orphan_triage import run as triage_run
+    from vigil.agent.orphan_triage import run as triage_run
     triage_run(
         RoutineConfig(brain_root=tmp_path, out_dir=out),
         today=date(2026, 5, 7),
@@ -184,7 +184,7 @@ def test_orphan_triage_never_mutates_brain(tmp_path: Path):
 def _patch_subprocess(monkeypatch, validate_payload: dict, doctor_payload: dict, *,
                       validate_rc: int = 0, doctor_rc: int = 0):
     """Replace ``_run_subcommand`` so tests don't shell out."""
-    from teammate.agent import weekly_digest as wd
+    from vigil.agent import weekly_digest as wd
 
     def fake(args: list[str], cwd: Path, timeout: int = 60):
         if "validate" in args:
@@ -210,7 +210,7 @@ def test_weekly_digest_writes_dated_file(tmp_path: Path, monkeypatch):
         },
     )
     out = tmp_path / "agent-out"
-    from teammate.agent.weekly_digest import run as digest_run
+    from vigil.agent.weekly_digest import run as digest_run
     result = digest_run(
         RoutineConfig(brain_root=tmp_path, out_dir=out),
         today=date(2026, 5, 7),
@@ -227,7 +227,7 @@ def test_weekly_digest_status_warn_on_validate_warn(tmp_path: Path, monkeypatch)
         doctor_payload={"checks": [], "exit_code": 0},
     )
     out = tmp_path / "agent-out"
-    from teammate.agent.weekly_digest import run as digest_run
+    from vigil.agent.weekly_digest import run as digest_run
     result = digest_run(
         RoutineConfig(brain_root=tmp_path, out_dir=out),
         today=date(2026, 5, 7),
@@ -243,7 +243,7 @@ def test_weekly_digest_status_fail_on_validate_fail(tmp_path: Path, monkeypatch)
         doctor_payload={"checks": [], "exit_code": 0},
     )
     out = tmp_path / "agent-out"
-    from teammate.agent.weekly_digest import run as digest_run
+    from vigil.agent.weekly_digest import run as digest_run
     result = digest_run(
         RoutineConfig(brain_root=tmp_path, out_dir=out),
         today=date(2026, 5, 7),
@@ -261,7 +261,7 @@ def test_weekly_digest_oversize_claude_md(tmp_path: Path, monkeypatch):
         doctor_payload={"checks": [], "exit_code": 0},
     )
     out = tmp_path / "agent-out"
-    from teammate.agent.weekly_digest import run as digest_run
+    from vigil.agent.weekly_digest import run as digest_run
     result = digest_run(
         RoutineConfig(brain_root=tmp_path, out_dir=out),
         today=date(2026, 5, 7),
@@ -281,8 +281,8 @@ def test_weekly_digest_slack_chunk_extractable(tmp_path: Path, monkeypatch):
         doctor_payload={"checks": [], "exit_code": 0},
     )
     out = tmp_path / "agent-out"
-    from teammate.agent.weekly_digest import extract_slack_chunk
-    from teammate.agent.weekly_digest import run as digest_run
+    from vigil.agent.weekly_digest import extract_slack_chunk
+    from vigil.agent.weekly_digest import run as digest_run
     result = digest_run(
         RoutineConfig(brain_root=tmp_path, out_dir=out),
         today=date(2026, 5, 7),
@@ -302,7 +302,7 @@ def test_weekly_digest_handles_no_git(tmp_path: Path, monkeypatch):
         doctor_payload={"checks": [], "exit_code": 0},
     )
     out = tmp_path / "agent-out"
-    from teammate.agent.weekly_digest import run as digest_run
+    from vigil.agent.weekly_digest import run as digest_run
     result = digest_run(
         RoutineConfig(brain_root=tmp_path, out_dir=out),
         today=date(2026, 5, 7),
@@ -313,7 +313,7 @@ def test_weekly_digest_handles_no_git(tmp_path: Path, monkeypatch):
 
 def test_weekly_digest_handles_missing_subcommand_output(tmp_path: Path, monkeypatch):
     """Empty stdout from a subprocess shouldn't crash the routine."""
-    from teammate.agent import weekly_digest as wd
+    from vigil.agent import weekly_digest as wd
 
     def fake(args: list[str], cwd: Path, timeout: int = 60):
         return 1, "", "boom"

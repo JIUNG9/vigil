@@ -17,8 +17,8 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from teammate.cli import main as cli_main
-from teammate.naming import (
+from vigil.cli import main as cli_main
+from vigil.naming import (
     NamingConvention,
     TokenSpec,
     Verdict,
@@ -28,7 +28,7 @@ from teammate.naming import (
     validate_name,
     write_starter,
 )
-from teammate.validate import validate as run_validate
+from vigil.validate import validate as run_validate
 
 # ---------- helpers ----------
 

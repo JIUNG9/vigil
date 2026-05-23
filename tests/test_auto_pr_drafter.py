@@ -9,10 +9,10 @@ from collections.abc import Iterator
 from datetime import date
 from pathlib import Path
 
-from teammate.agent import RoutineConfig
-from teammate.agent.auto_pr_drafter import run as drafter_run
-from teammate.agent.base import OK, WARN
-from teammate.providers.base import LLMProvider
+from vigil.agent import RoutineConfig
+from vigil.agent.auto_pr_drafter import run as drafter_run
+from vigil.agent.base import OK, WARN
+from vigil.providers.base import LLMProvider
 
 
 class FakeLLM(LLMProvider):

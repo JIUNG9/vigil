@@ -6,12 +6,12 @@ import datetime as _dt
 from datetime import timedelta
 from pathlib import Path
 
-from teammate.impact import (
+from vigil.impact import (
     InvalidationEvent,
     _clear_cache,
     emit,
 )
-from teammate.invalidations import (
+from vigil.invalidations import (
     extract_resource_ids,
     find_invalidations_for_chunks,
     render_banner,

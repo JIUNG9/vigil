@@ -7,7 +7,7 @@ from pathlib import Path
 
 
 def test_load_config_returns_defaults_when_no_file(tmp_path: Path):
-    from teammate.config import load_config
+    from vigil.config import load_config
 
     cfg = load_config(tmp_path)
     assert cfg.config_source == "default"
@@ -18,7 +18,7 @@ def test_load_config_returns_defaults_when_no_file(tmp_path: Path):
 
 
 def test_repo_config_overrides_defaults(tmp_path: Path):
-    from teammate.config import load_config
+    from vigil.config import load_config
 
     repo_cfg = tmp_path / ".teammate" / "config.toml"
     repo_cfg.parent.mkdir(parents=True)
@@ -43,7 +43,7 @@ def test_repo_config_overrides_defaults(tmp_path: Path):
 
 
 def test_env_vars_override_file(tmp_path: Path, monkeypatch):
-    from teammate.config import load_config
+    from vigil.config import load_config
 
     repo_cfg = tmp_path / ".teammate" / "config.toml"
     repo_cfg.parent.mkdir(parents=True)
@@ -67,7 +67,7 @@ def test_env_vars_override_file(tmp_path: Path, monkeypatch):
 
 
 def test_write_starter_config_round_trips(tmp_path: Path):
-    from teammate.config import ProviderConfig, write_starter_config
+    from vigil.config import ProviderConfig, write_starter_config
 
     llm = ProviderConfig(
         provider="ollama",
@@ -93,7 +93,7 @@ def test_write_starter_config_round_trips(tmp_path: Path):
 
 def test_write_starter_config_respects_uncommon_options(tmp_path: Path):
     """Options outside the well-known set should still round-trip."""
-    from teammate.config import ProviderConfig, write_starter_config
+    from vigil.config import ProviderConfig, write_starter_config
 
     llm = ProviderConfig(
         provider="anthropic",
@@ -116,7 +116,7 @@ def test_write_starter_config_respects_uncommon_options(tmp_path: Path):
 
 
 def test_invalidations_defaults(tmp_path: Path):
-    from teammate.config import load_config
+    from vigil.config import load_config
 
     cfg = load_config(tmp_path)
     assert cfg.invalidations.enabled is True
@@ -126,7 +126,7 @@ def test_invalidations_defaults(tmp_path: Path):
 
 
 def test_invalidations_section_loaded_from_repo_config(tmp_path: Path):
-    from teammate.config import load_config
+    from vigil.config import load_config
 
     repo_cfg = tmp_path / ".teammate" / "config.toml"
     repo_cfg.parent.mkdir(parents=True)
@@ -148,7 +148,7 @@ def test_invalidations_section_loaded_from_repo_config(tmp_path: Path):
 
 
 def test_invalidations_clamps_unknown_severity(tmp_path: Path):
-    from teammate.config import load_config
+    from vigil.config import load_config
 
     repo_cfg = tmp_path / ".teammate" / "config.toml"
     repo_cfg.parent.mkdir(parents=True)
@@ -165,7 +165,7 @@ def test_invalidations_clamps_unknown_severity(tmp_path: Path):
 
 def test_user_config_loaded_when_no_repo_config(tmp_path: Path, monkeypatch):
     """A user-scoped config under HOME should override defaults."""
-    from teammate.config import load_config
+    from vigil.config import load_config
 
     fake_home = tmp_path / "home"
     fake_home.mkdir()

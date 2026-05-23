@@ -17,7 +17,7 @@ distributes" pattern) because the digest is a leaf use-case with a fixed destina
 
 Required env vars (set on the CronJob, not the dashboard):
   ATLASSIAN_API_TOKEN, ATLASSIAN_EMAIL          for Confluence/Jira read+write
-  JIRA_BASE_URL, CONFLUENCE_BASE_URL            (default: placen.atlassian.net)
+  JIRA_BASE_URL, CONFLUENCE_BASE_URL            (default: <YOUR_DOMAIN>.atlassian.net)
   CONFLUENCE_WATCHER_SPACES                     comma-separated space keys to read from
   JIRA_WATCHER_JQL                              (optional) override JQL for digest
   TEAMMATE_DIGEST_SPACE_ID                      target space numeric ID

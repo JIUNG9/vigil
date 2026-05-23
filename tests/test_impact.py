@@ -9,8 +9,8 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from teammate.cli import main as cli_main
-from teammate.impact import (
+from vigil.cli import main as cli_main
+from vigil.impact import (
     SEVERITY_LEVELS,
     ImpactReport,
     InvalidationEvent,

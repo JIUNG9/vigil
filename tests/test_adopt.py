@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
-from teammate.adopt import (
+from vigil.adopt import (
     ADD,
     KEEP,
     MOVE_SUGGESTED,
@@ -17,7 +17,7 @@ from teammate.adopt import (
     AdoptPlan,
     adopt,
 )
-from teammate.cli import main as cli_main
+from vigil.cli import main as cli_main
 
 # ---------- helpers ----------
 

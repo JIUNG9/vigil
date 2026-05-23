@@ -12,8 +12,8 @@ from typing import Any
 
 import pytest
 
-from teammate.agent import RoutineConfig
-from teammate.agent._sync_common import (
+from vigil.agent import RoutineConfig
+from vigil.agent._sync_common import (
     FetchedPage,
     host_in_allowlist,
     html_to_markdown,
@@ -22,11 +22,11 @@ from teammate.agent._sync_common import (
     slugify,
     write_doc,
 )
-from teammate.agent.confluence_sync import run as confluence_run
-from teammate.agent.jira_sync import run as jira_run
-from teammate.agent.runner import run_routine
-from teammate.agent.slack_sync import run as slack_run
-from teammate.agent.web_pull import run as web_run
+from vigil.agent.confluence_sync import run as confluence_run
+from vigil.agent.jira_sync import run as jira_run
+from vigil.agent.runner import run_routine
+from vigil.agent.slack_sync import run as slack_run
+from vigil.agent.web_pull import run as web_run
 
 # ---------- shared helpers ----------
 
@@ -678,7 +678,7 @@ def test_web_pull_via_runner_dispatch(tmp_path: Path):
 def test_cli_sync_confluence_writes_artifact(tmp_path: Path, monkeypatch):
     from click.testing import CliRunner
 
-    from teammate.cli import main as cli_main
+    from vigil.cli import main as cli_main
 
     # Brain seed.
     (tmp_path / "CLAUDE.md").write_text("# brain\n", encoding="utf-8")
@@ -703,7 +703,7 @@ def test_cli_sync_confluence_writes_artifact(tmp_path: Path, monkeypatch):
 def test_cli_sync_dry_run_skips_writes(tmp_path: Path, monkeypatch):
     from click.testing import CliRunner
 
-    from teammate.cli import main as cli_main
+    from vigil.cli import main as cli_main
 
     (tmp_path / "CLAUDE.md").write_text("# brain\n", encoding="utf-8")
     cfg_dir = tmp_path / ".teammate"
@@ -733,7 +733,7 @@ def test_cli_sync_dry_run_skips_writes(tmp_path: Path, monkeypatch):
 def test_cli_sync_unknown_routine(tmp_path: Path, monkeypatch):
     from click.testing import CliRunner
 
-    from teammate.cli import main as cli_main
+    from vigil.cli import main as cli_main
 
     monkeypatch.chdir(tmp_path)
     runner = CliRunner()
@@ -745,7 +745,7 @@ def test_cli_sync_unknown_routine(tmp_path: Path, monkeypatch):
 def test_cli_sync_web_respects_allowlist(tmp_path: Path, monkeypatch):
     from click.testing import CliRunner
 
-    from teammate.cli import main as cli_main
+    from vigil.cli import main as cli_main
 
     (tmp_path / "CLAUDE.md").write_text("# brain\n", encoding="utf-8")
     cfg_dir = tmp_path / ".teammate"
@@ -769,7 +769,7 @@ def test_cli_sync_web_respects_allowlist(tmp_path: Path, monkeypatch):
 
 
 def test_sync_routines_lazy_import_httpx():
-    """Top-level `import teammate.agent.runner` must not require httpx.
+    """Top-level `import vigil.agent.runner` must not require httpx.
 
     Even if a test environment had httpx removed, the registry should
     still load. The fetcher is the one place httpx is touched; that
@@ -779,7 +779,7 @@ def test_sync_routines_lazy_import_httpx():
     # top level. We can't easily simulate "httpx removed" inside the
     # test runner, but we *can* confirm the source files don't import
     # it at module load.
-    from teammate.agent import _sync_common, confluence_sync, jira_sync, slack_sync, web_pull
+    from vigil.agent import _sync_common, confluence_sync, jira_sync, slack_sync, web_pull
 
     for module in (_sync_common, confluence_sync, jira_sync, slack_sync, web_pull):
         # Confirm the module doesn't have `httpx` as a module-level attribute.
@@ -791,6 +791,6 @@ def test_sync_routines_lazy_import_httpx():
 
 @pytest.mark.parametrize("routine", ["confluence_sync", "jira_sync", "slack_sync", "web_pull"])
 def test_sync_routines_registered(routine: str):
-    from teammate.agent.runner import list_routines
+    from vigil.agent.runner import list_routines
 
     assert routine in list_routines()

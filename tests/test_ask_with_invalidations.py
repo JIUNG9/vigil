@@ -5,14 +5,14 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-from teammate.config import (
+from vigil.config import (
     ConfidenceConfig,
     InvalidationsConfig,
 )
-from teammate.impact import _clear_cache, emit
-from teammate.providers.base import LLMProvider
-from teammate.rag.ask import answer
-from teammate.rag.index import _SCHEMA  # noqa: WPS437
+from vigil.impact import _clear_cache, emit
+from vigil.providers.base import LLMProvider
+from vigil.rag.ask import answer
+from vigil.rag.index import _SCHEMA  # noqa: WPS437
 
 # ---------- helpers ----------
 

@@ -8,10 +8,10 @@ import subprocess
 from datetime import date
 from pathlib import Path
 
-from teammate.agent import RoutineConfig
-from teammate.agent.base import OK, WARN
-from teammate.agent.invalidation_digest import run as digest_run
-from teammate.agent.runner import run_routine
+from vigil.agent import RoutineConfig
+from vigil.agent.base import OK, WARN
+from vigil.agent.invalidation_digest import run as digest_run
+from vigil.agent.runner import run_routine
 
 
 def _seed_brain_with_people(root: Path) -> None:

@@ -6,10 +6,10 @@ import json
 from datetime import date
 from pathlib import Path
 
-from teammate.agent import RoutineConfig
-from teammate.agent.base import OK, WARN
-from teammate.agent.pr_review_assist import run as assist_run
-from teammate.agent.runner import run_routine
+from vigil.agent import RoutineConfig
+from vigil.agent.base import OK, WARN
+from vigil.agent.pr_review_assist import run as assist_run
+from vigil.agent.runner import run_routine
 
 
 def _seed_brain(root: Path) -> None:

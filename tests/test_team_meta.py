@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from teammate.agent._team_meta import (
+from vigil.agent._team_meta import (
     Engineer,
     load_team_meta,
     parse_people,

@@ -10,8 +10,8 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
-from teammate.brain_pulse import collect, parse_duration
-from teammate.cli import main as cli_main
+from vigil.brain_pulse import collect, parse_duration
+from vigil.cli import main as cli_main
 
 
 def _seed(root: Path) -> None:

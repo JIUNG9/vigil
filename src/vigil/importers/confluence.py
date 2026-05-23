@@ -9,7 +9,7 @@ a small HTML→Markdown pass.
 Env vars:
     ATLASSIAN_API_TOKEN     required
     ATLASSIAN_EMAIL         required
-    CONFLUENCE_BASE_URL     default https://placen.atlassian.net/wiki
+    CONFLUENCE_BASE_URL     default https://<YOUR_DOMAIN>.atlassian.net/wiki
     CONFLUENCE_SPACES       comma-separated keys (e.g. "GOUR,FNBNOW")
 """
 

@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from teammate.adapter import (
+from vigil.adapter import (
     ADAPTER_FILENAME,
     Adapter,
     load_adapter,

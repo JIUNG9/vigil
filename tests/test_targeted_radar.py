@@ -8,10 +8,10 @@ import subprocess
 from datetime import date
 from pathlib import Path
 
-from teammate.agent import RoutineConfig
-from teammate.agent.base import OK, WARN
-from teammate.agent.runner import run_routine
-from teammate.agent.targeted_radar import run as radar_run
+from vigil.agent import RoutineConfig
+from vigil.agent.base import OK, WARN
+from vigil.agent.runner import run_routine
+from vigil.agent.targeted_radar import run as radar_run
 
 
 def _seed(root: Path, *, with_services: bool = True) -> None:
