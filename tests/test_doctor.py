@@ -70,7 +70,7 @@ def _seed_brain(root: Path) -> None:
 def _stamp_index(brain_root: Path, model: str = "nomic-embed-text",
                  dim: int = 768, provider: str = "ollama",
                  chunks: int = 5) -> Path:
-    cache = brain_root / ".teammate-cache"
+    cache = brain_root / ".vigil-cache"
     cache.mkdir(parents=True, exist_ok=True)
     db = cache / "vault.sqlite"
     conn = sqlite3.connect(str(db))
@@ -128,7 +128,7 @@ def _invoke_doctor(brain_root: Path, monkeypatch, *args: str) -> object:
 
 def test_doctor_loads_config_and_reports_source(tmp_path: Path, monkeypatch):
     _seed_brain(tmp_path)
-    cfg_dir = tmp_path / ".teammate"
+    cfg_dir = tmp_path / ".vigil"
     cfg_dir.mkdir()
     (cfg_dir / "config.toml").write_text(
         '[llm]\nprovider = "ollama"\nmodel = "qwen2:7b"\n'
@@ -148,7 +148,7 @@ def test_doctor_loads_config_and_reports_source(tmp_path: Path, monkeypatch):
 def test_doctor_marks_unreachable_llm_as_fail(tmp_path: Path, monkeypatch):
     _seed_brain(tmp_path)
     # Use a known-dead host so OllamaProvider.is_up() returns False fast.
-    cfg_dir = tmp_path / ".teammate"
+    cfg_dir = tmp_path / ".vigil"
     cfg_dir.mkdir()
     (cfg_dir / "config.toml").write_text(
         '[llm]\nprovider = "ollama"\nmodel = "llama3.2:3b"\n'

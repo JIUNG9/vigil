@@ -20,7 +20,7 @@ def test_load_config_returns_defaults_when_no_file(tmp_path: Path):
 def test_repo_config_overrides_defaults(tmp_path: Path):
     from vigil.config import load_config
 
-    repo_cfg = tmp_path / ".teammate" / "config.toml"
+    repo_cfg = tmp_path / ".vigil" / "config.toml"
     repo_cfg.parent.mkdir(parents=True)
     repo_cfg.write_text(
         '[llm]\n'
@@ -45,7 +45,7 @@ def test_repo_config_overrides_defaults(tmp_path: Path):
 def test_env_vars_override_file(tmp_path: Path, monkeypatch):
     from vigil.config import load_config
 
-    repo_cfg = tmp_path / ".teammate" / "config.toml"
+    repo_cfg = tmp_path / ".vigil" / "config.toml"
     repo_cfg.parent.mkdir(parents=True)
     repo_cfg.write_text(
         '[llm]\n'
@@ -128,7 +128,7 @@ def test_invalidations_defaults(tmp_path: Path):
 def test_invalidations_section_loaded_from_repo_config(tmp_path: Path):
     from vigil.config import load_config
 
-    repo_cfg = tmp_path / ".teammate" / "config.toml"
+    repo_cfg = tmp_path / ".vigil" / "config.toml"
     repo_cfg.parent.mkdir(parents=True)
     repo_cfg.write_text(
         '[llm]\nprovider = "ollama"\nmodel = "llama3.2:3b"\n'
@@ -150,7 +150,7 @@ def test_invalidations_section_loaded_from_repo_config(tmp_path: Path):
 def test_invalidations_clamps_unknown_severity(tmp_path: Path):
     from vigil.config import load_config
 
-    repo_cfg = tmp_path / ".teammate" / "config.toml"
+    repo_cfg = tmp_path / ".vigil" / "config.toml"
     repo_cfg.parent.mkdir(parents=True)
     repo_cfg.write_text(
         '[llm]\nprovider = "ollama"\nmodel = "x"\n'
@@ -173,7 +173,7 @@ def test_user_config_loaded_when_no_repo_config(tmp_path: Path, monkeypatch):
     # Cover Path.home() on Windows-style env too just in case.
     monkeypatch.setattr(Path, "home", classmethod(lambda cls: fake_home))
 
-    user_cfg = fake_home / ".teammate" / "config.toml"
+    user_cfg = fake_home / ".vigil" / "config.toml"
     user_cfg.parent.mkdir(parents=True)
     user_cfg.write_text(
         '[llm]\n'

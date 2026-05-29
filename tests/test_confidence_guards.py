@@ -192,7 +192,7 @@ def _record(query: str, *, ts: str | None = None, max_score: float = 0.7,
 
 
 def test_append_audit_creates_jsonl(tmp_path):
-    cache = tmp_path / ".teammate-cache"
+    cache = tmp_path / ".vigil-cache"
     out = append_audit(cache, _record("hello"))
     assert out == audit_log_path(cache)
     raw = out.read_text(encoding="utf-8")
@@ -204,7 +204,7 @@ def test_append_audit_creates_jsonl(tmp_path):
 
 
 def test_append_audit_appends_multiple_lines(tmp_path):
-    cache = tmp_path / ".teammate-cache"
+    cache = tmp_path / ".vigil-cache"
     append_audit(cache, _record("first"))
     append_audit(cache, _record("second"))
     lines = audit_log_path(cache).read_text(encoding="utf-8").splitlines()
@@ -214,7 +214,7 @@ def test_append_audit_appends_multiple_lines(tmp_path):
 
 
 def test_audit_rotation_renames_when_iso_week_changes(tmp_path, monkeypatch):
-    cache = tmp_path / ".teammate-cache"
+    cache = tmp_path / ".vigil-cache"
 
     # Write a record stamped to a Tuesday in ISO week 19 (May 5, 2026).
     week_a = _dt.datetime(2026, 5, 5, 10, 0, 0, tzinfo=_dt.UTC)
@@ -241,7 +241,7 @@ def test_audit_rotation_renames_when_iso_week_changes(tmp_path, monkeypatch):
 
 
 def test_audit_rotation_no_op_within_same_week(tmp_path):
-    cache = tmp_path / ".teammate-cache"
+    cache = tmp_path / ".vigil-cache"
     monday = _dt.datetime(2026, 5, 4, 10, 0, 0, tzinfo=_dt.UTC)
     friday = _dt.datetime(2026, 5, 8, 10, 0, 0, tzinfo=_dt.UTC)
     append_audit(cache, _record("a"), now=monday)
@@ -256,7 +256,7 @@ def test_audit_rotation_no_op_within_same_week(tmp_path):
 def test_audit_rotation_concats_when_archive_already_exists(tmp_path):
     """A 3-week-quiet brain that wakes up and finds an old archive name
     should append to it, not crash."""
-    cache = tmp_path / ".teammate-cache"
+    cache = tmp_path / ".vigil-cache"
     cache.mkdir(parents=True)
     archive = cache / "audit-2026-W19.jsonl"
     archive.write_text(
@@ -277,7 +277,7 @@ def test_audit_rotation_concats_when_archive_already_exists(tmp_path):
 
 
 def test_read_audit_returns_active_and_archived(tmp_path):
-    cache = tmp_path / ".teammate-cache"
+    cache = tmp_path / ".vigil-cache"
     cache.mkdir()
     (cache / "audit-2026-W18.jsonl").write_text(
         json.dumps({"ts": "2026-05-05T10:00:00+00:00", "query": "old", "max_score": 0.4}) + "\n",
@@ -294,7 +294,7 @@ def test_read_audit_returns_active_and_archived(tmp_path):
 
 
 def test_read_audit_filters_by_since(tmp_path):
-    cache = tmp_path / ".teammate-cache"
+    cache = tmp_path / ".vigil-cache"
     cache.mkdir()
     audit_log_path(cache).write_text(
         json.dumps({"ts": "2026-05-05T10:00:00+00:00", "query": "old"}) + "\n"
@@ -309,7 +309,7 @@ def test_read_audit_filters_by_since(tmp_path):
 
 
 def test_read_audit_filters_by_query_grep(tmp_path):
-    cache = tmp_path / ".teammate-cache"
+    cache = tmp_path / ".vigil-cache"
     cache.mkdir()
     audit_log_path(cache).write_text(
         json.dumps({"ts": "2026-05-05T10:00:00+00:00", "query": "deploy procedure"}) + "\n"
@@ -493,8 +493,8 @@ def test_answer_below_threshold_with_embedding_mode(tmp_path):
 
 
 def test_load_config_reads_confidence_section(tmp_path):
-    (tmp_path / ".teammate").mkdir()
-    (tmp_path / ".teammate" / "config.toml").write_text(
+    (tmp_path / ".vigil").mkdir()
+    (tmp_path / ".vigil" / "config.toml").write_text(
         "[llm]\nprovider = \"none\"\nmodel = \"\"\n"
         "[embedding]\nprovider = \"none\"\nmodel = \"\"\n"
         "[confidence]\nscore_threshold = 0.7\n"
@@ -507,8 +507,8 @@ def test_load_config_reads_confidence_section(tmp_path):
 
 
 def test_load_config_reads_contradiction_section(tmp_path):
-    (tmp_path / ".teammate").mkdir()
-    (tmp_path / ".teammate" / "config.toml").write_text(
+    (tmp_path / ".vigil").mkdir()
+    (tmp_path / ".vigil" / "config.toml").write_text(
         "[llm]\nprovider = \"none\"\nmodel = \"\"\n"
         "[embedding]\nprovider = \"none\"\nmodel = \"\"\n"
         "[contradiction]\nuse_llm_judge = true\nmax_llm_calls = 5\n",
@@ -530,7 +530,7 @@ def test_load_config_defaults_when_section_absent(tmp_path):
 
 def _run_cli(args: list[str], cwd: Path) -> tuple[int, str, str]:
     proc = subprocess.run(
-        [sys.executable, "-m", "teammate.cli"] + args,
+        [sys.executable, "-m", "vigil.cli"] + args,
         cwd=str(cwd),
         capture_output=True,
         text=True,
@@ -546,7 +546,7 @@ def test_cli_audit_no_log(tmp_path):
 
 
 def test_cli_audit_human_view(tmp_path):
-    cache = tmp_path / ".teammate-cache"
+    cache = tmp_path / ".vigil-cache"
     cache.mkdir()
     audit_log_path(cache).write_text(
         json.dumps({
@@ -566,7 +566,7 @@ def test_cli_audit_human_view(tmp_path):
 
 
 def test_cli_audit_query_grep(tmp_path):
-    cache = tmp_path / ".teammate-cache"
+    cache = tmp_path / ".vigil-cache"
     cache.mkdir()
     audit_log_path(cache).write_text(
         json.dumps({"ts": "2026-05-08T10:00:00+00:00", "query": "deploy"}) + "\n"

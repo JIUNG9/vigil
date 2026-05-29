@@ -682,7 +682,7 @@ def test_cli_sync_confluence_writes_artifact(tmp_path: Path, monkeypatch):
 
     # Brain seed.
     (tmp_path / "CLAUDE.md").write_text("# brain\n", encoding="utf-8")
-    cfg_dir = tmp_path / ".teammate"
+    cfg_dir = tmp_path / ".vigil"
     cfg_dir.mkdir()
     (cfg_dir / "config.toml").write_text(
         '[sync.confluence]\n'
@@ -706,7 +706,7 @@ def test_cli_sync_dry_run_skips_writes(tmp_path: Path, monkeypatch):
     from vigil.cli import main as cli_main
 
     (tmp_path / "CLAUDE.md").write_text("# brain\n", encoding="utf-8")
-    cfg_dir = tmp_path / ".teammate"
+    cfg_dir = tmp_path / ".vigil"
     cfg_dir.mkdir()
     (cfg_dir / "config.toml").write_text(
         '[sync.confluence]\n'
@@ -748,7 +748,7 @@ def test_cli_sync_web_respects_allowlist(tmp_path: Path, monkeypatch):
     from vigil.cli import main as cli_main
 
     (tmp_path / "CLAUDE.md").write_text("# brain\n", encoding="utf-8")
-    cfg_dir = tmp_path / ".teammate"
+    cfg_dir = tmp_path / ".vigil"
     cfg_dir.mkdir()
     (cfg_dir / "config.toml").write_text(
         '[sync.web]\n'
