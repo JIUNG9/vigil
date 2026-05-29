@@ -1,5 +1,24 @@
 # Changelog
 
+## [5.0.2] — 2026-05-29
+
+### Added
+- `teammate` back-compat shim package (`src/teammate/__init__.py` + `rag/`
+  subpackage) so v0.2 importers can still `from teammate.rag.ollama import
+  OllamaClient`. Fires a one-shot DeprecationWarning. Removal scheduled
+  for v6.0 (≥90 days after v5.0.0).
+- Series 7 part 8: ["One tool, two names"](docs/series-7/08-rename-and-cutover.md) — the rename + cutover story.
+- Series 7 part 9: ["Build it to be turned off cheaply"](docs/series-7/09-build-to-be-turned-off.md) — the lifecycle reflection.
+
+### Fixed — test suite leftover renames
+- 32 tests recovered (33 → 1 → 0 after the session) by chasing
+  leftover `.teammate` / `.teammate-cache` / `python -m teammate.cli` /
+  `"teammate adapter"` / `"teammate adopt"` / `"teammate_version"` /
+  `"teammate_template"` references across 7 test files. The shipping
+  code was already on `vigil.*`; only the test fixtures lagged.
+- README quickstart added (PyPI install, `vigil setup`, `vigil ask`).
+- README badges: PyPI version + Python version, alongside CI + License.
+
 ## [5.0.1] — 2026-05-29
 
 ### Fixed — lint hygiene
