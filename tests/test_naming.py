@@ -75,7 +75,7 @@ def _nexus_like_convention(language: str = "en") -> NamingConvention:
 
 
 def _write_naming_toml(root: Path, body: str) -> Path:
-    target = root / ".teammate-naming.toml"
+    target = root / ".vigil-naming.toml"
     target.write_text(textwrap.dedent(body), encoding="utf-8")
     return target
 
@@ -442,7 +442,7 @@ def test_load_naming_convention_from_toml(tmp_path: Path):
 
 
 def test_load_naming_convention_missing_returns_none(tmp_path: Path):
-    cfg = tmp_path / ".teammate-naming.toml"
+    cfg = tmp_path / ".vigil-naming.toml"
     assert load_naming_convention(cfg) is None
     assert load_naming_convention(None) is None
 
@@ -574,7 +574,7 @@ def test_cli_naming_init_template_writes_round_trippable_toml(tmp_path: Path, mo
     runner = CliRunner()
     result = runner.invoke(cli_main, ["naming", "init", "--template", "nexus-style"])
     assert result.exit_code == 0
-    target = tmp_path / ".teammate-naming.toml"
+    target = tmp_path / ".vigil-naming.toml"
     assert target.is_file()
     # Parses as TOML.
     with target.open("rb") as fh:
@@ -589,7 +589,7 @@ def test_cli_naming_init_template_writes_round_trippable_toml(tmp_path: Path, mo
 def test_cli_naming_init_refuses_overwrite(tmp_path: Path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     runner = CliRunner()
-    target = tmp_path / ".teammate-naming.toml"
+    target = tmp_path / ".vigil-naming.toml"
     target.write_text("# existing\n", encoding="utf-8")
     result = runner.invoke(cli_main, ["naming", "init", "--template", "small-team"])
     assert result.exit_code == 1
@@ -600,7 +600,7 @@ def test_cli_naming_init_refuses_overwrite(tmp_path: Path, monkeypatch):
 def test_cli_naming_init_force_overwrites(tmp_path: Path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     runner = CliRunner()
-    target = tmp_path / ".teammate-naming.toml"
+    target = tmp_path / ".vigil-naming.toml"
     target.write_text("# existing\n", encoding="utf-8")
     result = runner.invoke(
         cli_main, ["naming", "init", "--template", "small-team", "--force"]
@@ -624,7 +624,7 @@ def test_all_templates_render_and_load(tmp_path: Path):
 
 
 def test_write_starter_helper_round_trip(tmp_path: Path):
-    target = tmp_path / ".teammate-naming.toml"
+    target = tmp_path / ".vigil-naming.toml"
     written = write_starter(target, "strict-iac")
     assert written == target.resolve()
     conv = load_naming_convention(target)

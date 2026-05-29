@@ -82,7 +82,7 @@ def test_first_index_stamps_meta(tmp_path: Path):
     assert rows["embedding_model"] == "fake-A"
     assert rows["embedding_dim"] == "4"
     assert "created_at" in rows
-    assert "teammate_version" in rows
+    assert "vigil_version" in rows
 
 
 def test_second_index_with_same_provider_succeeds(tmp_path: Path):
