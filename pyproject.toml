@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "vigil-devsecops"
-version = "5.0.0"
+version = "5.0.2"
 description = "Vigil — a self-hosted DevSecOps command center. Reliability ops (SLA/SLO/SLI/MTTD/MTTR) over a git-backed team-brain corpus."
 readme = "README.md"
 requires-python = ">=3.11"
