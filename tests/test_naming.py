@@ -714,9 +714,9 @@ def test_validate_reads_include_naming_from_config_toml(tmp_path: Path):
         values = ["docs"]
         """,
     )
-    teammate_dir = tmp_path / ".teammate"
-    teammate_dir.mkdir()
-    (teammate_dir / "config.toml").write_text(
+    vigil_dir = tmp_path / ".vigil"
+    vigil_dir.mkdir()
+    (vigil_dir / "config.toml").write_text(
         "[validate]\ninclude_naming = true\n",
         encoding="utf-8",
     )

@@ -259,7 +259,7 @@ def test_write_starter_adapter_writes_file(tmp_path):
     target = tmp_path / "x" / ADAPTER_FILENAME
     written = write_starter_adapter(target, home=tmp_path)
     assert written.exists()
-    assert written.read_text(encoding="utf-8").startswith("# teammate adapter")
+    assert written.read_text(encoding="utf-8").startswith("# vigil adapter")
 
 
 # ---------- validate ----------
@@ -304,7 +304,7 @@ def cli_env(monkeypatch, tmp_path):
 
 def _run_cli(args: list[str], cwd: Path) -> tuple[int, str, str]:
     proc = subprocess.run(
-        [sys.executable, "-m", "teammate.cli"] + args,
+        [sys.executable, "-m", "vigil.cli"] + args,
         cwd=str(cwd),
         capture_output=True,
         text=True,
@@ -355,7 +355,7 @@ def test_cli_adapter_init_force_overwrites(cli_env):
         ["adapter", "init", "--scope", "home", "--force"], cwd=brain
     )
     assert rc == 0
-    assert "teammate adapter" in target.read_text(encoding="utf-8")
+    assert "vigil adapter" in target.read_text(encoding="utf-8")
 
 
 def test_cli_adapter_validate_no_config(cli_env):

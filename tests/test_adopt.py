@@ -187,7 +187,7 @@ def test_plan_to_markdown_renders_sections(tmp_path: Path):
     (tmp_path / "CLAUDE.md").write_text("# brain\n", encoding="utf-8")
     plan = adopt(tmp_path, dry_run=True)
     md = plan.to_markdown()
-    assert "# teammate adopt — migration plan" in md
+    assert "# vigil adopt — migration plan" in md
     assert "Keep — already at template path" in md
     assert "Add — template gap to fill" in md
     assert "`CLAUDE.md`" in md
@@ -217,7 +217,7 @@ def test_adopt_apply_copies_template_gaps(tmp_path: Path):
     skill = tmp_path / ".claude" / "skills" / "example-skill" / "SKILL.md"
     assert skill.exists()
     text = skill.read_text(encoding="utf-8")
-    assert "teammate_template: true" in text
+    assert "vigil_template: true" in text
 
 
 def test_adopt_apply_writes_migration_md(tmp_path: Path):
@@ -253,7 +253,7 @@ def test_adopt_apply_merges_frontmatter_marker(tmp_path: Path):
     text = skill.read_text(encoding="utf-8")
     # The bundled SKILL.md already has `name:` in frontmatter.
     assert "name:" in text
-    assert "teammate_template: true" in text
+    assert "vigil_template: true" in text
     # Should not have two `---` opening markers.
     assert text.count("\n---\n") <= 2
 
