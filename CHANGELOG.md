@@ -1,5 +1,37 @@
 # Changelog
 
+## [5.0.1] — 2026-05-29
+
+### Fixed — lint hygiene
+- Clear final 8 ruff errors across `chat_api`, `client_agent`, `indexer`,
+  `mttd`, `war/{alert_bridge,api}`: chained exceptions with `from exc` (B904),
+  collapsed nested `with` (SIM117), replaced try/except/pass with
+  `contextlib.suppress` (SIM105), folded deferred httpx import (E402)
+- No functional changes; ruff and pre-commit now pass clean
+
+## [5.0.0] — 2026-05-19
+
+### Changed — OSS rename: teammate → Vigil
+- Package renamed `claude-teammate` → `vigil-devsecops` on PyPI
+- Python package layout `src/teammate/*` → `src/vigil/*`
+- CLI command renamed `teammate` → `vigil` (e.g., `vigil ask`, `vigil war join`)
+- Local-agent sync dirs `~/.teammate/brain` → `~/.vigil/brain`
+- GitHub repo renamed `JIUNG9/teammate` → `JIUNG9/vigil`
+- Docs sweep: README, ARCHITECTURE, all `docs/*.md`, Medium articles updated
+- Preserved (interface compatibility): `TEAMMATE_*` env var names, internal
+  module imports in deployed image consumers
+- Internal (placen/fnb) deployment keeps a distinct name `paro` for K8s, AWS,
+  and engineer-facing DNS; OSS users see only `vigil`
+
+### Added — community + release scaffolding
+- `CONTRIBUTING.md` — dev setup, commit conventions, PR checklist
+- `CODE_OF_CONDUCT.md` — Contributor Covenant 2.1 (adopted by reference)
+- `.github/PULL_REQUEST_TEMPLATE.md`
+- `.github/ISSUE_TEMPLATE/{config,bug_report,feature_request}.yml` —
+  YAML form schemas + Discussions / security advisory links
+- `.github/workflows/publish.yml` — PyPI Trusted Publisher / OIDC on tag push
+- `.github/workflows/release.yml` — extract CHANGELOG section as Release body
+
 ## [4.0.0] — 2026-05-15
 
 ### Added — postmortem auto-drafter
