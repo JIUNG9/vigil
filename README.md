@@ -3,9 +3,30 @@
 > **A self-hosted DevSecOps command center.** Reliability ops, not chat. Six tabs over a git-backed corpus that auto-imports Jira / Confluence / GitHub / Slack. Engineers' Claude Code reads the brain locally; the dashboard is for the team's collective view. Private-VPC, no SaaS, no per-seat fee.
 
 [![CI](https://github.com/JIUNG9/vigil/actions/workflows/ci.yml/badge.svg)](https://github.com/JIUNG9/vigil/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/vigil-devsecops.svg)](https://pypi.org/project/vigil-devsecops/)
+[![Python](https://img.shields.io/pypi/pyversions/vigil-devsecops.svg)](https://pypi.org/project/vigil-devsecops/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> **About the rename**: this project was originally **teammate** (v0.10 → v4.0.0). Versions 1.0.0+ ship as **Vigil**. The GitHub repo redirects from `JIUNG9/teammate` to `JIUNG9/vigil`; legacy CLI names (`teammate`) keep working as aliases through the v1.x line. The story of the rename — and what we cut to get to v5 — is in [docs/series-7/](docs/series-7/).
+## 30-second quickstart
+
+```
+pip install vigil-devsecops
+vigil setup          # walk-through: point at your Slack + git repo + on-call schedule
+vigil ask "How do I rotate the auth-server EKS node group safely?"
+```
+
+That's it. The first run clones a template brain repo into `~/.vigil/brain`, drops a brain-pulse cron entry that refreshes it every hour, and gives you the `vigil ask` CLI. Your existing Claude Code session — if you have one — automatically reads the brain repo via the `~/.claude/CLAUDE.md` rule that `vigil setup` writes.
+
+**What you get in the first 5 minutes**
+
+| What | Where it lands |
+|---|---|
+| Local search over your runbooks, ADRs, and past Slack threads | `vigil ask "..."` |
+| Morning brief: what changed in the brain overnight, what you on-call'd through | `vigil pulse` |
+| Pre-baked watchlists for SigNoz-style anomalies | `~/.vigil/brain/watchlist/*.yaml` |
+| One-line CI hook to flag risky Terraform plans before apply | `vigil impact preview <plan>` |
+
+> **About the rename**: this project was originally **teammate** (v0.10 → v4.0.0). Versions 5.0.0+ ship as **Vigil**. The GitHub repo redirects from `JIUNG9/teammate` to `JIUNG9/vigil`; legacy `TEAMMATE_*` env vars are preserved for interface compatibility. The story of the rename — and what we cut to get to v5 — is in [docs/series-7/](docs/series-7/).
 
 ## What Vigil is
 
