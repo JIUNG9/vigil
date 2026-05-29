@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 600" font-family="-apple-system, Inter, sans-serif">
+  <rect width="1400" height="600" fill="#fafafa"/>
+
+  <text x="700" y="50" text-anchor="middle" font-size="26" font-weight="700" fill="#1a1a1a">Cutover phases, in order</text>
+  <text x="700" y="78" text-anchor="middle" font-size="15" fill="#5a5a5a">Red callouts mark the surprises I'd warn the next person about.</text>
+
+  <!-- Phase 1 -->
+  <rect x="60" y="140" width="280" height="120" fill="#1a8917" rx="6"/>
+  <text x="200" y="175" text-anchor="middle" font-size="14" fill="#fafafa" opacity="0.85">PHASE 1</text>
+  <text x="200" y="205" text-anchor="middle" font-size="20" font-weight="700" fill="#fafafa">File rename</text>
+  <text x="200" y="232" text-anchor="middle" font-size="13" fill="#fafafa" opacity="0.85">25 test files · pyproject</text>
+
+  <!-- Phase 2 -->
+  <rect x="380" y="140" width="280" height="120" fill="#1a8917" rx="6"/>
+  <text x="520" y="175" text-anchor="middle" font-size="14" fill="#fafafa" opacity="0.85">PHASE 2</text>
+  <text x="520" y="205" text-anchor="middle" font-size="20" font-weight="700" fill="#fafafa">ECR migration</text>
+  <text x="520" y="232" text-anchor="middle" font-size="13" fill="#fafafa" opacity="0.85">10 image rebuilds</text>
+
+  <!-- Phase 3 -->
+  <rect x="700" y="140" width="280" height="120" fill="#1a8917" rx="6"/>
+  <text x="840" y="175" text-anchor="middle" font-size="14" fill="#fafafa" opacity="0.85">PHASE 3</text>
+  <text x="840" y="205" text-anchor="middle" font-size="20" font-weight="700" fill="#fafafa">ArgoCD swap</text>
+  <text x="840" y="232" text-anchor="middle" font-size="13" fill="#fafafa" opacity="0.85">delete old · create new</text>
+
+  <!-- Phase 4 -->
+  <rect x="1020" y="140" width="280" height="120" fill="#1a8917" rx="6"/>
+  <text x="1160" y="175" text-anchor="middle" font-size="14" fill="#fafafa" opacity="0.85">PHASE 4</text>
+  <text x="1160" y="205" text-anchor="middle" font-size="20" font-weight="700" fill="#fafafa">DNS cutover</text>
+  <text x="1160" y="232" text-anchor="middle" font-size="13" fill="#fafafa" opacity="0.85">ACM · Route53</text>
+
+  <!-- Arrows between phases -->
+  <line x1="340" y1="200" x2="380" y2="200" stroke="#5a5a5a" stroke-width="3" marker-end="url(#arrow2)"/>
+  <line x1="660" y1="200" x2="700" y2="200" stroke="#5a5a5a" stroke-width="3" marker-end="url(#arrow2)"/>
+  <line x1="980" y1="200" x2="1020" y2="200" stroke="#5a5a5a" stroke-width="3" marker-end="url(#arrow2)"/>
+
+  <defs>
+    <marker id="arrow2" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#5a5a5a"/>
+    </marker>
+  </defs>
+
+  <!-- Gotcha callouts -->
+  <line x1="200" y1="260" x2="200" y2="320" stroke="#c83e3e" stroke-width="2" stroke-dasharray="4,3"/>
+  <rect x="60" y="320" width="280" height="80" fill="#ffffff" stroke="#c83e3e" stroke-width="2" rx="4"/>
+  <text x="200" y="348" text-anchor="middle" font-size="13" font-weight="700" fill="#c83e3e">Gotcha</text>
+  <text x="200" y="370" text-anchor="middle" font-size="13" fill="#1a1a1a">Sed misses literal strings</text>
+  <text x="200" y="388" text-anchor="middle" font-size="13" fill="#1a1a1a">in importlib + queue names</text>
+
+  <line x1="520" y1="260" x2="520" y2="320" stroke="#c83e3e" stroke-width="2" stroke-dasharray="4,3"/>
+  <rect x="380" y="320" width="280" height="80" fill="#ffffff" stroke="#c83e3e" stroke-width="2" rx="4"/>
+  <text x="520" y="348" text-anchor="middle" font-size="13" font-weight="700" fill="#c83e3e">Gotcha</text>
+  <text x="520" y="370" text-anchor="middle" font-size="13" fill="#1a1a1a">SG GroupName immutable;</text>
+  <text x="520" y="388" text-anchor="middle" font-size="13" fill="#1a1a1a">only the Name tag rewrites</text>
+
+  <line x1="840" y1="260" x2="840" y2="320" stroke="#c83e3e" stroke-width="2" stroke-dasharray="4,3"/>
+  <rect x="700" y="320" width="280" height="80" fill="#ffffff" stroke="#c83e3e" stroke-width="2" rx="4"/>
+  <text x="840" y="348" text-anchor="middle" font-size="13" font-weight="700" fill="#c83e3e">Gotcha</text>
+  <text x="840" y="370" text-anchor="middle" font-size="13" fill="#1a1a1a">PV reclaimPolicy default = Delete</text>
+  <text x="840" y="388" text-anchor="middle" font-size="13" fill="#1a1a1a">Patch to Retain BEFORE teardown</text>
+
+  <line x1="1160" y1="260" x2="1160" y2="320" stroke="#c83e3e" stroke-width="2" stroke-dasharray="4,3"/>
+  <rect x="1020" y="320" width="280" height="80" fill="#ffffff" stroke="#c83e3e" stroke-width="2" rx="4"/>
+  <text x="1160" y="348" text-anchor="middle" font-size="13" font-weight="700" fill="#c83e3e">Gotcha</text>
+  <text x="1160" y="370" text-anchor="middle" font-size="13" fill="#1a1a1a">Old ACM cert lingers</text>
+  <text x="1160" y="388" text-anchor="middle" font-size="13" fill="#1a1a1a">on dormant Ingress; clean later</text>
+
+  <!-- Time scale at bottom -->
+  <line x1="60" y1="460" x2="1300" y2="460" stroke="#5a5a5a" stroke-width="1"/>
+  <text x="200" y="490" text-anchor="middle" font-size="12" fill="#5a5a5a">~30 min</text>
+  <text x="520" y="490" text-anchor="middle" font-size="12" fill="#5a5a5a">~3 hours</text>
+  <text x="840" y="490" text-anchor="middle" font-size="12" fill="#5a5a5a">~15 min</text>
+  <text x="1160" y="490" text-anchor="middle" font-size="12" fill="#5a5a5a">~30 min + propagation</text>
+  <text x="700" y="525" text-anchor="middle" font-size="13" fill="#1a1a1a" font-style="italic">Phase 2 is where the time goes — every rebuild surfaces one more hardcoded name string.</text>
+</svg>

@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 580" font-family="-apple-system, Inter, sans-serif">
+  <rect width="1400" height="580" fill="#fafafa"/>
+
+  <text x="700" y="50" text-anchor="middle" font-size="26" font-weight="700" fill="#1a1a1a">Three things broke, ranked by surprise</text>
+  <text x="700" y="78" text-anchor="middle" font-size="15" fill="#5a5a5a">Each one took longer to find than to fix.</text>
+
+  <!-- Item 1 -->
+  <rect x="60" y="130" width="400" height="320" fill="#ffffff" stroke="#c83e3e" stroke-width="2" rx="6"/>
+  <rect x="60" y="130" width="400" height="56" fill="#c83e3e" rx="6"/>
+  <rect x="60" y="160" width="400" height="26" fill="#c83e3e"/>
+  <text x="80" y="165" font-size="13" fill="#fafafa" opacity="0.85">#1 BROKE</text>
+  <text x="80" y="180" font-size="19" font-weight="700" fill="#fafafa">v36 client 401-storm</text>
+
+  <text x="80" y="220" font-size="14" fill="#1a1a1a" font-weight="700">Symptom</text>
+  <text x="80" y="242" font-size="13" fill="#5a5a5a">Cron job pods crashlooped silently;</text>
+  <text x="80" y="260" font-size="13" fill="#5a5a5a">EKS auth proxy rejected lowercase</text>
+  <text x="80" y="278" font-size="13" fill="#5a5a5a">`bearer` scheme from new client.</text>
+
+  <text x="80" y="316" font-size="14" fill="#1a1a1a" font-weight="700">Fix</text>
+  <text x="80" y="338" font-size="13" fill="#5a5a5a">Pin `kubernetes&lt;36` in pyproject;</text>
+  <text x="80" y="356" font-size="13" fill="#5a5a5a">add 401 latch in socket_listener so</text>
+  <text x="80" y="374" font-size="13" fill="#5a5a5a">a single auth failure stops retry loop.</text>
+
+  <text x="80" y="415" font-size="12" fill="#c83e3e" font-weight="700">TIME TO FIND</text>
+  <text x="80" y="432" font-size="13" fill="#5a5a5a">~6 hours of restart confusion</text>
+
+  <!-- Item 2 -->
+  <rect x="500" y="130" width="400" height="320" fill="#ffffff" stroke="#c83e3e" stroke-width="2" rx="6"/>
+  <rect x="500" y="130" width="400" height="56" fill="#c83e3e" rx="6"/>
+  <rect x="500" y="160" width="400" height="26" fill="#c83e3e"/>
+  <text x="520" y="165" font-size="13" fill="#fafafa" opacity="0.85">#2 BROKE</text>
+  <text x="520" y="180" font-size="19" font-weight="700" fill="#fafafa">PyPI name `vigil` taken</text>
+
+  <text x="520" y="220" font-size="14" fill="#1a1a1a" font-weight="700">Symptom</text>
+  <text x="520" y="242" font-size="13" fill="#5a5a5a">`twine upload` rejected on name</text>
+  <text x="520" y="260" font-size="13" fill="#5a5a5a">collision; PyPI page belongs to</text>
+  <text x="520" y="278" font-size="13" fill="#5a5a5a">an unrelated abandoned package.</text>
+
+  <text x="520" y="316" font-size="14" fill="#1a1a1a" font-weight="700">Fix</text>
+  <text x="520" y="338" font-size="13" fill="#5a5a5a">Package name = `vigil-devsecops`;</text>
+  <text x="520" y="356" font-size="13" fill="#5a5a5a">import path stays `from vigil`;</text>
+  <text x="520" y="374" font-size="13" fill="#5a5a5a">CLI command stays `vigil`.</text>
+
+  <text x="520" y="415" font-size="12" fill="#c83e3e" font-weight="700">TIME TO FIND</text>
+  <text x="520" y="432" font-size="13" fill="#5a5a5a">5 minutes; cost = ugly pip line</text>
+
+  <!-- Item 3 -->
+  <rect x="940" y="130" width="400" height="320" fill="#ffffff" stroke="#c83e3e" stroke-width="2" rx="6"/>
+  <rect x="940" y="130" width="400" height="56" fill="#c83e3e" rx="6"/>
+  <rect x="940" y="160" width="400" height="26" fill="#c83e3e"/>
+  <text x="960" y="165" font-size="13" fill="#fafafa" opacity="0.85">#3 BROKE</text>
+  <text x="960" y="180" font-size="19" font-weight="700" fill="#fafafa">Handle leaked on Confluence</text>
+
+  <text x="960" y="220" font-size="14" fill="#1a1a1a" font-weight="700">Symptom</text>
+  <text x="960" y="242" font-size="13" fill="#5a5a5a">Internal tracker page embedded</text>
+  <text x="960" y="260" font-size="13" fill="#5a5a5a">github.com/JIUNG9/... URLs that</text>
+  <text x="960" y="278" font-size="13" fill="#5a5a5a">tie a personal email to company doc.</text>
+
+  <text x="960" y="316" font-size="14" fill="#1a1a1a" font-weight="700">Fix</text>
+  <text x="960" y="338" font-size="13" fill="#5a5a5a">Hard rule in CLAUDE config: never</text>
+  <text x="960" y="356" font-size="13" fill="#5a5a5a">embed personal GH URLs on company</text>
+  <text x="960" y="374" font-size="13" fill="#5a5a5a">pages — say "OSS repo" generically.</text>
+
+  <text x="960" y="415" font-size="12" fill="#c83e3e" font-weight="700">TIME TO FIND</text>
+  <text x="960" y="432" font-size="13" fill="#5a5a5a">Caught at second tracker page</text>
+
+  <text x="700" y="510" text-anchor="middle" font-size="14" fill="#1a1a1a" font-style="italic">
+    Every cutover surfaces a different class of latent assumption. Write each one into the rule book.
+  </text>
+</svg>

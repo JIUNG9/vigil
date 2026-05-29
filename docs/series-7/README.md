@@ -26,4 +26,12 @@ The consolidated articles are the live versions on Medium and the source of trut
 | 6 | [War-rooms that aren't blank: auto-pre-loaded incident response](06-war-rooms-auto-preloaded.md) | ~1,700 |
 | 7 | [Lessons from shipping an SRE assistant](07-lessons-retrospective.md) | ~1,700 |
 
+## v5 reflection (post-cutover)
+
+| Part | Title | Words |
+|---|---|---|
+| 8 | [One tool, two names: shipping an SRE assistant that is also open source](08-rename-and-cutover.md) | ~2,200 |
+
+Part 8 is written from the v5 vantage point. It covers the dual-name decision (Vigil for OSS, paro for internal), the four phases of the cutover, what broke, and what it actually costs to run vs idle.
+
 For the full architecture overview: [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md).

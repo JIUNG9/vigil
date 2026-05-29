@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 700" font-family="-apple-system, Inter, sans-serif">
+  <rect width="1400" height="700" fill="#fafafa"/>
+
+  <text x="700" y="50" text-anchor="middle" font-size="26" font-weight="700" fill="#1a1a1a">One tool, two surfaces</text>
+  <text x="700" y="78" text-anchor="middle" font-size="15" fill="#5a5a5a">Same code, same binary. The names diverge by audience.</text>
+
+  <!-- OSS column header -->
+  <rect x="60" y="120" width="380" height="60" fill="#1a8917" rx="6"/>
+  <text x="250" y="155" text-anchor="middle" font-size="22" font-weight="700" fill="#fafafa">Vigil — OSS</text>
+  <text x="250" y="175" text-anchor="middle" font-size="13" fill="#fafafa" opacity="0.85">what the world sees</text>
+
+  <!-- Shared column header -->
+  <rect x="510" y="120" width="380" height="60" fill="#5a5a5a" rx="6"/>
+  <text x="700" y="155" text-anchor="middle" font-size="22" font-weight="700" fill="#fafafa">Shared core</text>
+  <text x="700" y="175" text-anchor="middle" font-size="13" fill="#fafafa" opacity="0.85">interface contract</text>
+
+  <!-- Internal column header -->
+  <rect x="960" y="120" width="380" height="60" fill="#2b6cb0" rx="6"/>
+  <text x="1150" y="155" text-anchor="middle" font-size="22" font-weight="700" fill="#fafafa">paro — internal</text>
+  <text x="1150" y="175" text-anchor="middle" font-size="13" fill="#fafafa" opacity="0.85">placen / fnb cluster</text>
+
+  <!-- OSS column items -->
+  <g font-size="15" fill="#1a1a1a">
+    <rect x="60" y="210" width="380" height="55" fill="#ffffff" stroke="#1a8917" stroke-width="1.5" rx="4"/>
+    <text x="250" y="244" text-anchor="middle">GitHub repo · JIUNG9/vigil</text>
+
+    <rect x="60" y="280" width="380" height="55" fill="#ffffff" stroke="#1a8917" stroke-width="1.5" rx="4"/>
+    <text x="250" y="314" text-anchor="middle">PyPI package · vigil-devsecops</text>
+
+    <rect x="60" y="350" width="380" height="55" fill="#ffffff" stroke="#1a8917" stroke-width="1.5" rx="4"/>
+    <text x="250" y="384" text-anchor="middle">CLI command · vigil ask / vigil war</text>
+
+    <rect x="60" y="420" width="380" height="55" fill="#ffffff" stroke="#1a8917" stroke-width="1.5" rx="4"/>
+    <text x="250" y="454" text-anchor="middle">Medium articles · LinkedIn posts</text>
+
+    <rect x="60" y="490" width="380" height="55" fill="#ffffff" stroke="#1a8917" stroke-width="1.5" rx="4"/>
+    <text x="250" y="524" text-anchor="middle">Local sync · ~/.vigil/brain</text>
+  </g>
+
+  <!-- Shared column items -->
+  <g font-size="15" fill="#1a1a1a">
+    <rect x="510" y="210" width="380" height="55" fill="#ffffff" stroke="#5a5a5a" stroke-width="1.5" rx="4"/>
+    <text x="700" y="244" text-anchor="middle">Python module · vigil.*</text>
+
+    <rect x="510" y="280" width="380" height="55" fill="#ffffff" stroke="#5a5a5a" stroke-width="1.5" rx="4"/>
+    <text x="700" y="314" text-anchor="middle">Env vars · TEAMMATE_* (preserved)</text>
+
+    <rect x="510" y="350" width="380" height="55" fill="#ffffff" stroke="#5a5a5a" stroke-width="1.5" rx="4"/>
+    <text x="700" y="384" text-anchor="middle">REST API · /search · /ask · /feedback</text>
+
+    <rect x="510" y="420" width="380" height="55" fill="#ffffff" stroke="#5a5a5a" stroke-width="1.5" rx="4"/>
+    <text x="700" y="454" text-anchor="middle">Postgres schema · qdrant collection</text>
+
+    <rect x="510" y="490" width="380" height="55" fill="#ffffff" stroke="#5a5a5a" stroke-width="1.5" rx="4"/>
+    <text x="700" y="524" text-anchor="middle">Container image binary</text>
+  </g>
+
+  <!-- Internal column items -->
+  <g font-size="15" fill="#1a1a1a">
+    <rect x="960" y="210" width="380" height="55" fill="#ffffff" stroke="#2b6cb0" stroke-width="1.5" rx="4"/>
+    <text x="1150" y="244" text-anchor="middle">K8s namespace · paro-agent</text>
+
+    <rect x="960" y="280" width="380" height="55" fill="#ffffff" stroke="#2b6cb0" stroke-width="1.5" rx="4"/>
+    <text x="1150" y="314" text-anchor="middle">ECR · pn-nx-apne2-prod-paro-{api,web}</text>
+
+    <rect x="960" y="350" width="380" height="55" fill="#ffffff" stroke="#2b6cb0" stroke-width="1.5" rx="4"/>
+    <text x="1150" y="384" text-anchor="middle">AWS SM · /pn/nx/paro/prod/credentials</text>
+
+    <rect x="960" y="420" width="380" height="55" fill="#ffffff" stroke="#2b6cb0" stroke-width="1.5" rx="4"/>
+    <text x="1150" y="454" text-anchor="middle">ArgoCD app · paro-nexus-prod</text>
+
+    <rect x="960" y="490" width="380" height="55" fill="#ffffff" stroke="#2b6cb0" stroke-width="1.5" rx="4"/>
+    <text x="1150" y="524" text-anchor="middle">DNS · chat.paro.placen.net</text>
+  </g>
+
+  <!-- Connector arrows -->
+  <line x1="440" y1="370" x2="510" y2="370" stroke="#5a5a5a" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="890" y1="370" x2="960" y2="370" stroke="#5a5a5a" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#5a5a5a"/>
+    </marker>
+  </defs>
+
+  <text x="700" y="610" text-anchor="middle" font-size="14" fill="#5a5a5a" font-style="italic">
+    The shared core does the work. The columns are dressing for different audiences.
+  </text>
+</svg>
