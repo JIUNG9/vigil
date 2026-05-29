@@ -31,7 +31,10 @@ The consolidated articles are the live versions on Medium and the source of trut
 | Part | Title | Words |
 |---|---|---|
 | 8 | [One tool, two names: shipping an SRE assistant that is also open source](08-rename-and-cutover.md) | ~2,200 |
+| 9 | [Build it to be turned off cheaply](09-build-to-be-turned-off.md) | ~1,800 |
 
-Part 8 is written from the v5 vantage point. It covers the dual-name decision (Vigil for OSS, paro for internal), the four phases of the cutover, what broke, and what it actually costs to run vs idle.
+Part 8 is the v5 cutover story (dual-name decision, four phases of the cutover, what broke, what it costs to run vs idle).
+
+Part 9 is the lifecycle reflection: what the design instinct should have been on day one to make "turn this off for a while" a 15-minute decision rather than a panicked Friday-afternoon scramble. Includes the 2-of-3 restart criteria, the cost math ($122 running → $11 idled → $4 fully torn down), and six day-one practices that would have made the idle decision easier.
 
 For the full architecture overview: [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md).

@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 560" font-family="-apple-system, Inter, sans-serif">
+  <rect width="1400" height="560" fill="#fafafa"/>
+
+  <text x="700" y="50" text-anchor="middle" font-size="26" font-weight="700" fill="#1a1a1a">Six things to do on day one</text>
+  <text x="700" y="78" text-anchor="middle" font-size="15" fill="#5a5a5a">Each takes ~30 minutes. Skipping them is what makes "turn it off" hard later.</text>
+
+  <!-- Six tiles in 2×3 grid -->
+  <g font-size="14" fill="#1a1a1a">
+    <!-- Row 1 -->
+    <rect x="60" y="120" width="410" height="120" fill="#ffffff" stroke="#1a8917" stroke-width="2" rx="6"/>
+    <text x="80" y="148" font-size="13" font-weight="700" fill="#1a8917">1 · Cost tags from creation</text>
+    <text x="80" y="178" font-size="13" fill="#1a1a1a">Every resource carries `service`, `env`,</text>
+    <text x="80" y="196" font-size="13" fill="#1a1a1a">`owner` tags from Terraform.</text>
+    <text x="80" y="220" font-size="12" fill="#5a5a5a" font-style="italic">Retrofitting tags = audit nightmare.</text>
+
+    <rect x="495" y="120" width="410" height="120" fill="#ffffff" stroke="#1a8917" stroke-width="2" rx="6"/>
+    <text x="515" y="148" font-size="13" font-weight="700" fill="#1a8917">2 · PV reclaim = Retain</text>
+    <text x="515" y="178" font-size="13" fill="#1a1a1a">Every PVC over 5 GiB. No exceptions.</text>
+    <text x="515" y="196" font-size="13" fill="#1a1a1a">Default Delete is silent + total loss.</text>
+    <text x="515" y="220" font-size="12" fill="#5a5a5a" font-style="italic">Enforce via Kyverno policy.</text>
+
+    <rect x="930" y="120" width="410" height="120" fill="#ffffff" stroke="#1a8917" stroke-width="2" rx="6"/>
+    <text x="950" y="148" font-size="13" font-weight="700" fill="#1a8917">3 · One ArgoCD app per project</text>
+    <text x="950" y="178" font-size="13" fill="#1a1a1a">No direct kubectl apply for prod.</text>
+    <text x="950" y="196" font-size="13" fill="#1a1a1a">Delete the app → all compute gone.</text>
+    <text x="950" y="220" font-size="12" fill="#5a5a5a" font-style="italic">Symmetric: one create / one delete.</text>
+
+    <!-- Row 2 -->
+    <rect x="60" y="270" width="410" height="120" fill="#ffffff" stroke="#1a8917" stroke-width="2" rx="6"/>
+    <text x="80" y="298" font-size="13" font-weight="700" fill="#1a8917">4 · Day-one undeploy runbook</text>
+    <text x="80" y="328" font-size="13" fill="#1a1a1a">Both halves: how to deploy +</text>
+    <text x="80" y="346" font-size="13" fill="#1a1a1a">how to undeploy. Same document.</text>
+    <text x="80" y="370" font-size="12" fill="#5a5a5a" font-style="italic">Future-you is the next on-call.</text>
+
+    <rect x="495" y="270" width="410" height="120" fill="#ffffff" stroke="#1a8917" stroke-width="2" rx="6"/>
+    <text x="515" y="298" font-size="13" font-weight="700" fill="#1a8917">5 · usage_events table</text>
+    <text x="515" y="328" font-size="13" fill="#1a1a1a">Best-effort INSERT on every</text>
+    <text x="515" y="346" font-size="13" fill="#1a1a1a">user-facing endpoint. Daily rollup.</text>
+    <text x="515" y="370" font-size="12" fill="#5a5a5a" font-style="italic">14-day zero-usage → Slack alert.</text>
+
+    <rect x="930" y="270" width="410" height="120" fill="#ffffff" stroke="#1a8917" stroke-width="2" rx="6"/>
+    <text x="950" y="298" font-size="13" font-weight="700" fill="#1a8917">6 · 2-of-3 criteria written down</text>
+    <text x="950" y="328" font-size="13" fill="#1a1a1a">Specific to this tool. In the runbook.</text>
+    <text x="950" y="346" font-size="13" fill="#1a1a1a">Restart vibes-call becomes decision.</text>
+    <text x="950" y="370" font-size="12" fill="#5a5a5a" font-style="italic">Data flowing · measurable · used.</text>
+  </g>
+
+  <text x="700" y="475" text-anchor="middle" font-size="14" fill="#1a1a1a" font-style="italic">
+    Compute is cattle. Data is pets. Treat them differently in your IaC.
+  </text>
+  <text x="700" y="505" text-anchor="middle" font-size="13" fill="#5a5a5a">
+    The off-switch only works if you build it in before you need it.
+  </text>
+</svg>
