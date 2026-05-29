@@ -54,7 +54,7 @@ over your team's brain.
 
 ```bash
 vigil ask "..."          # whenever you're unsure
-git pull                    # when teammates update the brain
+git pull                    # when colleagues update the brain
 vigil init               # re-runs the index (incremental)
 
 # When YOU update the brain:
