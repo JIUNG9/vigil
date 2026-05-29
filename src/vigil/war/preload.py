@@ -37,9 +37,9 @@ class PreloadResult:
 
 
 def preload_panels(incident) -> PreloadResult:
+    from vigil.mttd.similarity_layer import SimilarityLayer
     from vigil.war.alert_bridge import Incident
     from vigil.war.participant_selector import propose_participants
-    from vigil.mttd.similarity_layer import SimilarityLayer
 
     assert isinstance(incident, Incident)
 
@@ -202,10 +202,9 @@ def _persist(result: PreloadResult) -> None:
     if not dsn:
         return
 
-    with psycopg.connect(dsn) as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """INSERT INTO incident_preload
+    with psycopg.connect(dsn) as conn, conn.cursor() as cur:
+        cur.execute(
+            """INSERT INTO incident_preload
                    (incident_id, summary, similar_incidents, candidate_causes,
                     runbooks, actions, participants, live_data_urls)
                    VALUES (%s, %s, %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb)
@@ -217,14 +216,14 @@ def _persist(result: PreloadResult) -> None:
                      actions = EXCLUDED.actions,
                      participants = EXCLUDED.participants,
                      live_data_urls = EXCLUDED.live_data_urls""",
-                (
-                    result.incident_id, result.summary,
-                    json.dumps(result.similar_incidents),
-                    json.dumps(result.candidate_causes),
-                    json.dumps(result.runbooks),
-                    json.dumps(result.actions),
-                    json.dumps(result.participants),
-                    json.dumps(result.live_data_urls),
-                ),
-            )
-            conn.commit()
+            (
+                result.incident_id, result.summary,
+                json.dumps(result.similar_incidents),
+                json.dumps(result.candidate_causes),
+                json.dumps(result.runbooks),
+                json.dumps(result.actions),
+                json.dumps(result.participants),
+                json.dumps(result.live_data_urls),
+            ),
+        )
+        conn.commit()

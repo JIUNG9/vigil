@@ -91,15 +91,14 @@ def _fetch_timeline(incident_id: str) -> list[dict]:
     dsn = os.environ.get("POSTGRES_DSN", "")
     if not dsn:
         return []
-    with psycopg.connect(dsn) as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """SELECT event_type, actor, payload, created_at
+    with psycopg.connect(dsn) as conn, conn.cursor() as cur:
+        cur.execute(
+            """SELECT event_type, actor, payload, created_at
                    FROM incident_events
                    WHERE incident_id = %s ORDER BY created_at ASC""",
-                (incident_id,),
-            )
-            rows = cur.fetchall()
+            (incident_id,),
+        )
+        rows = cur.fetchall()
     return [
         {"event_type": r[0], "actor": r[1], "payload": r[2], "created_at": r[3].isoformat()}
         for r in rows
@@ -114,15 +113,14 @@ def _fetch_preload(incident_id: str) -> dict:
     dsn = os.environ.get("POSTGRES_DSN", "")
     if not dsn:
         return {}
-    with psycopg.connect(dsn) as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """SELECT summary, similar_incidents, candidate_causes,
+    with psycopg.connect(dsn) as conn, conn.cursor() as cur:
+        cur.execute(
+            """SELECT summary, similar_incidents, candidate_causes,
                           runbooks, actions, participants
                    FROM incident_preload WHERE incident_id = %s""",
-                (incident_id,),
-            )
-            row = cur.fetchone()
+            (incident_id,),
+        )
+        row = cur.fetchone()
     if not row:
         return {}
     return {

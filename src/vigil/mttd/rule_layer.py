@@ -44,8 +44,8 @@ class RuleLayer:
     def load_rules(self) -> list[WatchRule]:
         try:
             import yaml
-        except ImportError:
-            raise RuntimeError("PyYAML required: pip install 'claude-vigil[mttd]'")
+        except ImportError as exc:
+            raise RuntimeError("PyYAML required: pip install 'claude-vigil[mttd]'") from exc
 
         rules: list[WatchRule] = []
         if not self.dir.exists():

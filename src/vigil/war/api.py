@@ -17,15 +17,15 @@ Mounts at /war (separately deployable from chat-api). Routes:
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import os
-import time
 from collections.abc import AsyncIterator
 
 try:
     from fastapi import FastAPI, HTTPException, Request
-    from fastapi.responses import StreamingResponse, JSONResponse
+    from fastapi.responses import JSONResponse, StreamingResponse
     from pydantic import BaseModel
 except ImportError as exc:
     raise RuntimeError("FastAPI required: pip install 'claude-vigil[war]'") from exc
@@ -82,11 +82,11 @@ async def healthz():
 
 @app.post("/incident")
 async def create_incident(req: CreateIncidentRequest):
-    from vigil.war.alert_bridge import create_incident, IncidentSource
+    from vigil.war.alert_bridge import IncidentSource, create_incident
     try:
         src = IncidentSource(req.source)
-    except ValueError:
-        raise HTTPException(400, f"unknown source: {req.source}")
+    except ValueError as exc:
+        raise HTTPException(400, f"unknown source: {req.source}") from exc
     incident = create_incident(
         source=src,
         title=req.title,
@@ -155,11 +155,11 @@ async def post_event(incident_id: str, req: EventRequest):
 
 @app.post("/incident/{incident_id}/transition")
 async def transition_incident(incident_id: str, req: TransitionRequest):
-    from vigil.war.alert_bridge import transition, IncidentState
+    from vigil.war.alert_bridge import IncidentState, transition
     try:
         target = IncidentState(req.target_state)
-    except ValueError:
-        raise HTTPException(400, f"unknown state: {req.target_state}")
+    except ValueError as exc:
+        raise HTTPException(400, f"unknown state: {req.target_state}") from exc
     ok = transition(incident_id, target, req.actor)
     if not ok:
         raise HTTPException(404, "incident not found")
@@ -233,20 +233,16 @@ async def sse(incident_id: str) -> StreamingResponse:
                 ev = await queue.get()
                 yield f"event: update\ndata: {json.dumps(ev, default=str)}\n\n"
         finally:
-            try:
+            with contextlib.suppress(ValueError, KeyError):
                 _subscribers[incident_id].remove(queue)
-            except (ValueError, KeyError):
-                pass
 
     return StreamingResponse(stream(), media_type="text/event-stream")
 
 
 async def _publish_sse(incident_id: str, event: dict) -> None:
     for q in list(_subscribers.get(incident_id, [])):
-        try:
+        with contextlib.suppress(asyncio.QueueFull):
             q.put_nowait(event)
-        except asyncio.QueueFull:
-            pass
 
 
 # ---------------------------------------------------------------------------
@@ -265,7 +261,7 @@ async def slack_command(request: Request):
     user = form.get("user_name") or form.get("user_id", "unknown")
 
     if command == "/war":
-        from vigil.war.alert_bridge import create_incident, IncidentSource
+        from vigil.war.alert_bridge import IncidentSource, create_incident
         inc = create_incident(
             source=IncidentSource.ENG_MANUAL,
             title=text or "Engineer-declared incident",
@@ -275,7 +271,7 @@ async def slack_command(request: Request):
         return _slack_response(f":rotating_light: *Incident {inc.id} created* — state: ACTIVE. War-room: <https://chat.vigil.example.com/war/{inc.id}|open>")
 
     if command == "/war-report":
-        from vigil.war.alert_bridge import create_incident, IncidentSource
+        from vigil.war.alert_bridge import IncidentSource, create_incident
         inc = create_incident(
             source=IncidentSource.CS_MANUAL,
             title=text or "CS-reported issue",
@@ -314,23 +310,21 @@ def _query(sql: str, params: tuple = ()) -> list[tuple]:
     import psycopg
     if not POSTGRES_DSN:
         return []
-    with psycopg.connect(POSTGRES_DSN) as conn:
-        with conn.cursor() as cur:
-            cur.execute(sql, params)
-            try:
-                return cur.fetchall()
-            except psycopg.ProgrammingError:
-                return []
+    with psycopg.connect(POSTGRES_DSN) as conn, conn.cursor() as cur:
+        cur.execute(sql, params)
+        try:
+            return cur.fetchall()
+        except psycopg.ProgrammingError:
+            return []
 
 
 def _execute(sql: str, params: tuple = ()) -> None:
     import psycopg
     if not POSTGRES_DSN:
         return
-    with psycopg.connect(POSTGRES_DSN) as conn:
-        with conn.cursor() as cur:
-            cur.execute(sql, params)
-            conn.commit()
+    with psycopg.connect(POSTGRES_DSN) as conn, conn.cursor() as cur:
+        cur.execute(sql, params)
+        conn.commit()
 
 
 def _row_to_dict(row) -> dict:

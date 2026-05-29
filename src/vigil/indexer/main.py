@@ -69,8 +69,8 @@ class Indexer:
         """Create the Qdrant collection if it doesn't exist. Idempotent."""
         try:
             import httpx
-        except ImportError:
-            raise RuntimeError("httpx required: pip install 'claude-vigil[rag]'")
+        except ImportError as exc:
+            raise RuntimeError("httpx required: pip install 'claude-vigil[rag]'") from exc
 
         # nomic-embed-text emits 768-dim vectors
         spec = {"vectors": {"size": 768, "distance": "Cosine"}}

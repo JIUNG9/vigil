@@ -16,7 +16,6 @@ Env vars:
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import os
@@ -26,13 +25,12 @@ from collections.abc import AsyncIterator
 log = logging.getLogger(__name__)
 
 try:
+    import httpx
     from fastapi import FastAPI, HTTPException, Query, Request
-    from fastapi.responses import StreamingResponse, JSONResponse
+    from fastapi.responses import JSONResponse, StreamingResponse
     from pydantic import BaseModel
 except ImportError as exc:
     raise RuntimeError("FastAPI required: pip install 'claude-vigil[chat-api]'") from exc
-
-import httpx
 
 app = FastAPI(title="vigil-chat-api", version="1.0.0")
 
@@ -176,23 +174,22 @@ async def search(req: SearchRequest) -> SearchResponse:
 
 async def _stream_llm(prompt: str) -> AsyncIterator[str]:
     """Stream LLM tokens via Ollama /api/generate."""
-    async with httpx.AsyncClient(timeout=120) as client:
-        async with client.stream(
-            "POST",
-            f"{OLLAMA_URL}/api/generate",
-            json={"model": LLM_MODEL, "prompt": prompt, "stream": True},
-        ) as resp:
-            async for line in resp.aiter_lines():
-                if not line:
-                    continue
-                try:
-                    chunk = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                if "response" in chunk:
-                    yield chunk["response"]
-                if chunk.get("done"):
-                    return
+    async with httpx.AsyncClient(timeout=120) as client, client.stream(
+        "POST",
+        f"{OLLAMA_URL}/api/generate",
+        json={"model": LLM_MODEL, "prompt": prompt, "stream": True},
+    ) as resp:
+        async for line in resp.aiter_lines():
+            if not line:
+                continue
+            try:
+                chunk = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if "response" in chunk:
+                yield chunk["response"]
+            if chunk.get("done"):
+                return
 
 
 @app.get("/ask")
@@ -246,9 +243,10 @@ async def index_status() -> dict:
 async def reindex(request: Request) -> JSONResponse:
     """Create a K8s Job from vigil-reindex CronJob template. Idempotent via label check."""
     try:
-        from kubernetes import client as k8s_client, config as k8s_config
-    except ImportError:
-        raise HTTPException(503, "kubernetes client not installed")
+        from kubernetes import client as k8s_client
+        from kubernetes import config as k8s_config
+    except ImportError as exc:
+        raise HTTPException(503, "kubernetes client not installed") from exc
 
     try:
         k8s_config.load_incluster_config()
@@ -288,7 +286,8 @@ async def reindex(request: Request) -> JSONResponse:
 async def feed() -> dict:
     """Today's digest + recent triggered jobs. UI Feed tab consumes this."""
     try:
-        from kubernetes import client as k8s_client, config as k8s_config
+        from kubernetes import client as k8s_client
+        from kubernetes import config as k8s_config
         try:
             k8s_config.load_incluster_config()
         except Exception:

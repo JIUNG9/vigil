@@ -18,7 +18,7 @@ Three creation paths converge on `create_incident()`:
 - CS / non-engineer (/war-report → triage gate)
 """
 
-from vigil.war.alert_bridge import create_incident, IncidentSource
+from vigil.war.alert_bridge import IncidentSource, create_incident
 from vigil.war.preload import preload_panels
 
 __all__ = ["create_incident", "preload_panels", "IncidentSource"]

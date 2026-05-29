@@ -27,7 +27,6 @@ import os
 import sys
 from pathlib import Path
 
-
 HOOK_NAME = "vigil-war-mirror"
 MCP_NAME = "vigil-war"
 

@@ -17,7 +17,6 @@ import os
 import sys
 import time
 
-
 DESTRUCTIVE_PATTERNS = [
     "kubectl delete",
     "terraform destroy",
@@ -52,16 +51,15 @@ def main() -> int:
     # Soft-gate destructive actions (PreToolUse only)
     if args.phase == "pre" and tool_name == "Bash":
         cmd = tool_input.get("command", "")
-        if _is_destructive(cmd):
-            if not _approved(args.url, args.incident, user, cmd):
-                # Block: write a clear blocking reason and exit non-zero
-                print(
-                    f"⚠️  BLOCKED by vigil-war: destructive action requires "
-                    f"incident-lead approval. Command: {cmd[:80]}\n"
-                    f"Ask the lead to approve in the war-room, then retry.",
-                    file=sys.stderr,
-                )
-                return 1
+        if _is_destructive(cmd) and not _approved(args.url, args.incident, user, cmd):
+            # Block: write a clear blocking reason and exit non-zero
+            print(
+                f"⚠️  BLOCKED by vigil-war: destructive action requires "
+                f"incident-lead approval. Command: {cmd[:80]}\n"
+                f"Ask the lead to approve in the war-room, then retry.",
+                file=sys.stderr,
+            )
+            return 1
 
     _post_event(args.url, args.incident, args.phase, user, tool_name, tool_input,
                 payload.get("tool_response"))
@@ -97,7 +95,8 @@ def _post_event(war_url: str, incident_id: str, phase: str, user: str,
         import httpx
     except ImportError:
         return
-    try:
+    import contextlib
+    with contextlib.suppress(Exception):
         httpx.post(
             f"{war_url}/incident/{incident_id}/event",
             json={
@@ -110,8 +109,6 @@ def _post_event(war_url: str, incident_id: str, phase: str, user: str,
             },
             timeout=5,
         )
-    except Exception:
-        pass  # best-effort — never block Claude Code on telemetry
 
 
 if __name__ == "__main__":
